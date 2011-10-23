@@ -27,16 +27,17 @@ if !exists('g:CsDbMgmtConfigFile')
     let g:CsDbMgmtConfigFile = $HOME.'/.cs-db-mgmt.json'
 endif
 
-" [[DB's project name, db's status, lastest update time, [file list,]], ]
-let g:CsDbMgmtDbStatus = []
+" {prj_name:
+"   [[DB_name, db_status, lastest_update_time, [file list,]], ], }
+let g:CsDbMgmtDbStatus = {}
 
 func! CsDbMgmt() abort
-    call s:CsDbMgmtShow(s:CsDbMgmtGet())
-    " call s:CsDbMgmtGet()
+    " call s:CsDbMgmtShow(s:CsDbMgmtGet())
+    call s:CsDbMgmtGet()
 endf
 
 func! s:CsDbMgmtGet()
-    let g:CsDbMgmtDbStatus = []
+    let g:CsDbMgmtDbStatus = {}
 
     if !filereadable(g:CsDbMgmtConfigFile)
         echo "you need have a config file befor"
@@ -49,10 +50,20 @@ func! s:CsDbMgmtGet()
     endif
 
     let l:config_json = eval(join(readfile(g:CsDbMgmtConfigFile)))
-    for item in items(config_json)
+    for item in items(l:config_json)
+        " it is a grouping
+        if type(item[1][0]) == 4
+            echo item[1]
+            echo "it is a grouping"
+        endif
+    endfor
+    return
+
+    for item in items(l:config_json)
         let l:db_list = []
         let l:db_status = 0
         let l:db_ftime = 0
+
         call add(l:db_list, item[0])
 
         " db's status check
@@ -64,7 +75,10 @@ func! s:CsDbMgmtGet()
         call add(l:db_list, l:db_status)
         call add(l:db_list, l:db_ftime)
         call add(l:db_list, item[1])
-        call add(g:CsDbMgmtDbStatus, l:db_list)
+
+        g:CsDbMgmtDbStatus[item[0]] = l:db_list
+        echo g:CsDbMgmtDbStatus[item[0]
+        " call add(g:CsDbMgmtDbStatus, l:db_list)
     endfor
 
     call s:CsDbMgmtDecho(g:CsDbMgmtDbStatus)
