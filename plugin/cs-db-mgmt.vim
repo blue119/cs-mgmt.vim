@@ -7,7 +7,8 @@ com! CsDbMgmt call CsDbMgmt()
 map <Leader>cs :call CsDbMgmt()<CR>
 
 " debug mode on/off
-let s:CsDbMgmtDebug = 0
+" let s:CsDbMgmtDebug = 0
+let s:CsDbMgmtDebug = 1
 func! s:CsDbMgmtDecho(...)
     if s:CsDbMgmtDebug
         call Decho(a:000)
@@ -32,8 +33,27 @@ endif
 let g:CsDbMgmtDbStatus = {}
 
 func! CsDbMgmt() abort
-    " call s:CsDbMgmtShow(s:CsDbMgmtGet())
-    call s:CsDbMgmtGet()
+    call s:CsDbMgmtShow(s:CsDbMgmtGet())
+    " call s:CsDbMgmtGet()
+endf
+
+func! s:CsDbMgmtItemConstruct(item_list)
+    let l:db_list = []
+    let l:db_status = 0
+    let l:db_ftime = 0
+
+    call add(l:db_list, a:item_list[0])
+
+    " db's status check
+    if filereadable(g:CsDbMgmtDb.a:item_list[0].'.out')
+        let l:db_status = 1
+        let l:db_ftime = getftime(g:CsDbMgmtDb.a:item_list[0].'.out')
+    endif
+
+    call add(l:db_list, l:db_status)
+    call add(l:db_list, l:db_ftime)
+    call add(l:db_list, a:item_list[1])
+    return l:db_list
 endf
 
 func! s:CsDbMgmtGet()
@@ -50,64 +70,63 @@ func! s:CsDbMgmtGet()
     endif
 
     let l:config_json = eval(join(readfile(g:CsDbMgmtConfigFile)))
+    " return
+
     for item in items(l:config_json)
-        " it is a grouping
+        " grouping process
         if type(item[1][0]) == 4
-            echo item[1]
-            echo "it is a grouping"
+            let l:prj_name = item[0]
+            let l:db_list = []
+            for i in range(0, len(item[1]) - 1)
+                call add(l:db_list, s:CsDbMgmtItemConstruct([item[1][i]['db_name'], item[1][i]['source_list']]))
+            endfor
+            let g:CsDbMgmtDbStatus[item[0]] = l:db_list
+        else
+            let g:CsDbMgmtDbStatus[item[0]] = [s:CsDbMgmtItemConstruct(item)]
         endif
     endfor
-    return
 
-    for item in items(l:config_json)
-        let l:db_list = []
-        let l:db_status = 0
-        let l:db_ftime = 0
-
-        call add(l:db_list, item[0])
-
-        " db's status check
-        if filereadable(g:CsDbMgmtDb.item[0].'.out')
-            let l:db_status = 1
-            let l:db_ftime = getftime(g:CsDbMgmtDb.item[0].'.out')
-        endif
-
-        call add(l:db_list, l:db_status)
-        call add(l:db_list, l:db_ftime)
-        call add(l:db_list, item[1])
-
-        g:CsDbMgmtDbStatus[item[0]] = l:db_list
-        echo g:CsDbMgmtDbStatus[item[0]
-        " call add(g:CsDbMgmtDbStatus, l:db_list)
-    endfor
-
-    call s:CsDbMgmtDecho(g:CsDbMgmtDbStatus)
+    " call s:CsDbMgmtDecho(g:CsDbMgmtDbStatus)
     return g:CsDbMgmtDbStatus
 endf
 
 func! s:CsDbMgmtStripPrjNameFromGetline(line)
-    return split(a:line, '|')[1]
+    if s:DbExist.'|' == a:line[:len(s:DbExist)]
+        return split(a:line, '|')[1]
+    endif
+    call s:CsDbMgmtDecho(s:DbExist.'|')
+    return -1
 endf
 
 func! CsDbMgmtAttach(db)
     let l:prj_name = s:CsDbMgmtStripPrjNameFromGetline(a:db)
-    exec "cs add ".g:CsDbMgmtDb.l:prj_name.'.out'
+    call s:CsDbMgmtDecho(l:prj_name)
+    if l:prj_name != -1
+        call s:CsDbMgmtDecho("cs add ".g:CsDbMgmtDb.l:prj_name.'.out')
+        exec "cs add ".g:CsDbMgmtDb.l:prj_name.'.out'
+    endif
 endf
 
 func! CsDbMgmtDetach(db)
     let l:prj_name = s:CsDbMgmtStripPrjNameFromGetline(a:db)
-    exec "cs kill ".g:CsDbMgmtDb.l:prj_name.'.out'
+    call s:CsDbMgmtDecho(l:prj_name)
+    if l:prj_name != -1
+        call s:CsDbMgmtDecho("cs add ".g:CsDbMgmtDb.l:prj_name.'.out')
+        exec "cs kill ".g:CsDbMgmtDb.l:prj_name.'.out'
+    endif
 endf
 
 func! s:CsDbMgmtGetPrjName(item)
     return a:item[0]
 endf
 
+let s:DbExist = ' O'
+let s:DbNonExist = ' X'
 func! s:CsDbMgmtGetDbStatus(item)
     if a:item[1] == 0
-        return "DB non-Exist"
+        return s:DbNonExist
     else
-        return "    DB Exist"
+        return s:DbExist
     endf
 
 func! s:CsDbMgmtGetUpdateTime(item)
@@ -132,6 +151,7 @@ func! CsDbMgmtSprintf(item)
 endf
 
 func! s:CsDbMgmtShow(content)
+
     exec 'silent pedit .cs-db-mgmt.tmp'
 
     wincmd P | wincmd H
@@ -142,11 +162,18 @@ func! s:CsDbMgmtShow(content)
 
     
     let l:all_db = []
-    for l:item in a:content
-        let l:sprintf = CsDbMgmtSprintf(l:item)
-        call add(l:all_db, l:sprintf)
+    for l:items in items(a:content)
+        " prj_name
+        call add(l:all_db, l:items[0])
+        for l:item in l:items[1]
+            " call s:CsDbMgmtDecho(l:item)
+            let l:sprintf = CsDbMgmtSprintf(l:item)
+            call add(l:all_db, l:sprintf)
+        endfor
+        " new line
+        call add(l:all_db,'')
     endfor
-    call sort(l:all_db)
+    " call sort(l:all_db)
 
     call append(len(l:header)+1, l:all_db)
 
