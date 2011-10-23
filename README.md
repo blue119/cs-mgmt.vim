@@ -10,6 +10,8 @@
     2. We can edit this menu directly.
     3. it can attach or detach by group.
     4. it will check all status of items as show menu.
+    5. the csocpe's db can be groupable with project
+    6. prj name can be included space
 
 #0.03v
     1. the db file will be auto-update when file be update.
