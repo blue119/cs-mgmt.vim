@@ -30,7 +30,7 @@ endif
 
 " {prj_name:
 "   [[DB_name, db_status, lastest_update_time, [file list,]], ], }
-let g:CsDbMgmtDbStatus = {}
+let s:CsDbMgmtDbStatus = {}
 
 func! CsDbMgmt() abort
     call s:CsDbMgmtShow(s:CsDbMgmtGet())
@@ -57,7 +57,7 @@ func! s:CsDbMgmtItemConstruct(item_list)
 endf
 
 func! s:CsDbMgmtGet()
-    let g:CsDbMgmtDbStatus = {}
+    let s:CsDbMgmtDbStatus = {}
 
     if !filereadable(g:CsDbMgmtConfigFile)
         echo "you need have a config file befor"
@@ -80,17 +80,17 @@ func! s:CsDbMgmtGet()
             for i in range(0, len(item[1]) - 1)
                 call add(l:db_list, s:CsDbMgmtItemConstruct([item[1][i]['db_name'], item[1][i]['source_list']]))
             endfor
-            let g:CsDbMgmtDbStatus[item[0]] = l:db_list
+            let s:CsDbMgmtDbStatus[item[0]] = l:db_list
         else
-            let g:CsDbMgmtDbStatus[item[0]] = [s:CsDbMgmtItemConstruct(item)]
+            let s:CsDbMgmtDbStatus[item[0]] = [s:CsDbMgmtItemConstruct(item)]
         endif
     endfor
 
     " call s:CsDbMgmtDecho(g:CsDbMgmtDbStatus)
-    return g:CsDbMgmtDbStatus
+    return s:CsDbMgmtDbStatus
 endf
 
-func! s:CsDbMgmtStripPrjNameFromGetline(line)
+func! s:CsDbMgmtGetExistPrjNameFromLine(line)
     if s:DbExist.'|' == a:line[:len(s:DbExist)]
         return split(a:line, '|')[1]
     endif
@@ -98,22 +98,111 @@ func! s:CsDbMgmtStripPrjNameFromGetline(line)
     return -1
 endf
 
-func! CsDbMgmtAttach(db)
-    let l:prj_name = s:CsDbMgmtStripPrjNameFromGetline(a:db)
-    call s:CsDbMgmtDecho(l:prj_name)
-    if l:prj_name != -1
-        call s:CsDbMgmtDecho("cs add ".g:CsDbMgmtDb.l:prj_name.'.out')
-        exec "cs add ".g:CsDbMgmtDb.l:prj_name.'.out'
+func! s:CsDbMgmtGetNonExistPrjNameFromLine(line)
+    if s:DbNonExist.'|' == a:line[:len(s:DbNonExist)]
+        return split(a:line, '|')[1]
     endif
+    call s:CsDbMgmtDecho(s:DbNonExist.'|')
+    return -1
+endf
+
+func! CsDbMgmtAttach(db)
+    let l:prj_name = s:CsDbMgmtGetExistPrjNameFromLine(a:db)
+    call s:CsDbMgmtDecho(l:prj_name)
+    if l:prj_name == -1
+        return
+    endif
+
+    call s:CsDbMgmtDecho("cs add ".g:CsDbMgmtDb.l:prj_name.'.out')
+    exec "cs add ".g:CsDbMgmtDb.l:prj_name.'.out'
 endf
 
 func! CsDbMgmtDetach(db)
-    let l:prj_name = s:CsDbMgmtStripPrjNameFromGetline(a:db)
+    let l:prj_name = s:CsDbMgmtGetExistPrjNameFromLine(a:db)
     call s:CsDbMgmtDecho(l:prj_name)
-    if l:prj_name != -1
-        call s:CsDbMgmtDecho("cs add ".g:CsDbMgmtDb.l:prj_name.'.out')
-        exec "cs kill ".g:CsDbMgmtDb.l:prj_name.'.out'
+    if l:prj_name == -1
+        return
     endif
+
+    call s:CsDbMgmtDecho("cs add ".g:CsDbMgmtDb.l:prj_name.'.out')
+    exec "cs kill ".g:CsDbMgmtDb.l:prj_name.'.out'
+endf
+
+func! MyWalk(path, all_file)
+    let l:file_list = split(globpath(a:path, '*'), '\n')
+    for file in l:file_list
+        if isdirectory(file)
+            call MyWalk(file, a:all_file)
+        else
+            if match(file, '\.[chsS]$') >= 0
+                call add(a:all_file, file)
+            endif
+        endif
+    endfor
+endf
+
+func! s:CsDbMgmtDbBuild(db_name)
+    let l:cmd_string = printf('cd %s && cscope -b -q -k -i%s.files -f%s.out', 
+            \ g:CsDbMgmtDb, a:db_name, a:db_name)
+    call s:CsDbMgmtDecho(l:cmd_string)
+    let l:ret = system(l:cmd_string)
+    call s:CsDbMgmtDecho(l:ret)
+endf
+
+func! CsDbMgmtBuild(db)
+    let l:prj_name = s:CsDbMgmtGetNonExistPrjNameFromLine(a:db)
+    let l:all_file = []
+
+    if l:prj_name == -1
+        echoe('Its db has existed.')
+    endif
+    call s:CsDbMgmtDecho(l:prj_name)
+    call s:CsDbMgmtDecho(s:CsDbMgmtDbStatus)
+
+    try
+        let l:item = s:CsDbMgmtDbStatus[l:prj_name]
+    catch
+        " find its parent
+        let l:dec_num = 1
+        let l:line = getline(line("."))
+        while !((s:DbExist.'|' != l:line[:len(s:DbExist)]) &&
+            \ (s:DbNonExist.'|' != l:line[:len(s:DbNonExist)]))
+            let l:line = getline(line(".") - l:dec_num)
+            let l:dec_num += 1
+        endwhile
+        call s:CsDbMgmtDecho(l:dec_num)
+        let l:item = s:CsDbMgmtDbStatus[l:line][l:dec_num - 2]
+    endtry
+    call s:CsDbMgmtDecho(l:item)
+    while 1
+        if len(l:item) == 1
+            let l:item = l:item[0]
+        else
+            break
+        endif
+    endwhile
+    let l:file_list = s:CsDbMgmtGetFileList(l:item)
+    call s:CsDbMgmtDecho(l:file_list)
+    for path in l:file_list
+        call MyWalk(path, l:all_file)
+    endfor
+    let g:CsDbMgmtDb = $HOME.'/.cs-db-mgmt/'
+    call writefile(l:all_file, g:CsDbMgmtDb.l:prj_name.'.files')
+    call s:CsDbMgmtDbBuild(l:prj_name)
+endf
+
+func! CsDbMgmtRebuild(db)
+    let l:prj_name = s:CsDbMgmtGetExistPrjNameFromLine(a:db)
+    let l:all_file = []
+
+    if l:prj_name == -1
+        echoe('Its db has not existed.')
+    endif
+    call s:CsDbMgmtDbBuild(l:prj_name)
+endf
+
+func! s:CsDbMgmtGetFileListByDbName(DbName)
+    return a:item[0]
 endf
 
 func! s:CsDbMgmtGetPrjName(item)
@@ -157,9 +246,12 @@ func! s:CsDbMgmtShow(content)
     wincmd P | wincmd H
 
     let g:cdm_view = bufnr('%')
-    let l:header = ['" Press a to attach', '" Press d to detach']
+    let l:header = ['" Press a to attach', 
+                    \ '" Press d to detach',
+                    \ '" Press b to build db',
+                    \ '" Press r to rebuild db',
+                    \ ]
     call append(0, l:header)
-
     
     let l:all_db = []
     for l:items in items(a:content)
@@ -189,6 +281,8 @@ func! s:CsDbMgmtShow(content)
     nnoremap <buffer> q :silent bd!<CR>
     nnoremap <buffer> a :call CsDbMgmtAttach(printf("%s", getline('.')))<CR>
     nnoremap <buffer> d :call CsDbMgmtDetach(printf("%s", getline('.')))<CR>
+    nnoremap <buffer> b :call CsDbMgmtBuild(printf("%s", getline('.')))<CR>
+    nnoremap <buffer> r :call CsDbMgmtRebuild(printf("%s", getline('.')))<CR>
 
     exec ':'.(len(l:header) + 1)
     redraw!
