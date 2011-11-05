@@ -45,7 +45,10 @@ func! s:cdm_buf_view(json)
     for k in keys(a:json)
 
         " if it is simple prj, just show it
-        if type(a:json[k]) == 3
+        if type(a:json[k]) == 1
+            call add(l:view_data, s:cdm_show_item_construct(0, '', k))
+
+        elseif type(a:json[k]) == 3
             call add(l:view_data, s:cdm_show_item_construct(0, '', k))
 
         " it is a project config
@@ -267,6 +270,13 @@ func! CsDbMgmtAttach(line, pos)
         return
     endif
 
+    if s:cdm_str_strip(a:line)[0] == s:db_nonexist_token
+        echohl WarningMsg 
+            \ | echo "Hasn't build"
+            \ | echohl None
+        return
+    endif
+
     let l:db_level = s:cdm_which_level_is_it(a:line)
     let l:parent_list = s:cdm_get_parent_list_from_buf(l:db_level, a:line, a:pos)
     let l:dbname = s:get_db_item_name(a:line)
@@ -392,6 +402,10 @@ func! CsDbMgmtBuild(line, pos)
     call writefile(l:all_file_list, g:CsDbMgmtDb.l:db_full_name.'.files')
 
     let l:path_list = s:cdm_get_path_list_from_config(l:parent_list, l:dbname)
+
+    if type(l:path_list) == 1
+        let l:path_list = [l:path_list]
+    endif
 
     for p in l:path_list
         call s:cdm_path_walk(p, l:all_file_list)

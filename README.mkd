@@ -2,21 +2,21 @@ Plan Versoins
 =============
 
 0.01v
-----
+-----
 # firstly, auto create a cscope's database with a shell script.
 # whole database will be put on same folder.
 # it can provide a menu list to attach and detach your cscope database.
 # the menu list refer to database folder.
 
 0.02v
-----
+-----
 # the menu of items can be classified with like as json file.
 # it will check all status of items as show menu.
 # the csocpe's db can be groupable with project
 # to provide build and rebuild function
 
 0.03v
-----
+-----
 # almost to re-write the plugin
 # all data save in buffer
 # it is going to show witch db be attached
@@ -25,15 +25,18 @@ Plan Versoins
 # support multi deep layer json structure. 
 # it look more colorful
 
+TODO
+====
+
 0.04v
-----
+-----
 # support attach or detach by group.
 # We can edit this menu directly.
 
 0.05v
-----
+-----
 # the db file will be auto-update when file be update.
 
-TODO
+wish
 ----
 # prj name can be included space
