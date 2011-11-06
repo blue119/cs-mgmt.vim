@@ -8,7 +8,8 @@
 "       it is a prj -> \ {prj_name}
 "                      \ \ \ \ \ {O|X}\ {db_name}\ {timestamp}\ [Attach]
 
-com! CsDbMgmt call CsDbMgmt()
+command! CsDbMgmt2File call CsDbMgmt2File()
+command! CsDbMgmt call CsDbMgmt()
 map <Leader>cs :call CsDbMgmt()<CR>
 
 " debug mode on/off
@@ -33,6 +34,7 @@ if !exists('g:CsDbMgmtConfigFile')
 endif
 
 let s:CsDbMgmtDbStatus = {}
+let s:json2file_list = []
 
 func! CsDbMgmt() abort
     call s:cdm_init_check()
@@ -81,12 +83,12 @@ func! s:cdm_deep_prj_collect(indent_level, collect_list, config, parent)
 endf
 
 func! s:cdm_str_add_indent(indent_level, str)
-    return repeat(s:cdm_show_indent_token, a:indent_level).a:str
+    return repeat(s:cdm_indent_token, a:indent_level).a:str
 endf
 
 let s:db_exist_token = 'O'
 let s:db_nonexist_token = 'X'
-let s:cdm_show_indent_token = '    '
+let s:cdm_indent_token = '    '
 if !exists('s:db_attach_list')
     let s:db_attach_list = []
 endif
@@ -164,7 +166,7 @@ func! s:get_db_item_attach(line)
 endf
 
 func! s:cdm_which_level_is_it(line)
-    return (len(s:get_db_item_indent(a:line))/len(s:cdm_show_indent_token))
+    return (len(s:get_db_item_indent(a:line))/len(s:cdm_indent_token))
 endf
 
 func! s:cdm_show_item_construct(indent_level, parent, dbname)
@@ -174,7 +176,7 @@ func! s:cdm_show_item_construct(indent_level, parent, dbname)
                 \   (a:parent.'_'.a:dbname)
     let l:db_status_token = s:db_nonexist_token
     let l:db_attach = ''
-    let l:db_indent = repeat(s:cdm_show_indent_token, a:indent_level)
+    let l:db_indent = repeat(s:cdm_indent_token, a:indent_level)
 
     " to check the status of db reference file
     " call s:dprint(g:CsDbMgmtDb.l:db_full_name.'.out')
@@ -458,6 +460,59 @@ func! CsDbMgmtRebuild(line, pos)
     call setline(a:pos,
         \ s:cdm_show_item_construct(l:db_level, l:parent, l:dbname))
     call s:cdm_get_readonly_mode()
+endf
+
+func! s:cdm_json_dip(indent_level, value)
+    for item in items(a:value)
+        let l:il = a:indent_level
+        let l:key = item[0]
+        unlet! l:value
+        let l:value = item[1]
+        let l:vt = type(l:value)
+
+        if l:vt == 1
+            call add(s:json2file_list, 
+                        \   repeat(s:cdm_indent_token, l:il) . 
+                        \   "'" . l:key . "'" . 
+                        \   " : " . "'" . l:value . "', " )
+
+        elseif l:vt == 3
+            call add(s:json2file_list, 
+                    \ repeat(s:cdm_indent_token, l:il) . 
+                    \ "'" . l:key . "'" . " : " . "[")
+
+            let l:il += 1
+            for i in l:value
+                call add(s:json2file_list, 
+                        \ repeat(s:cdm_indent_token, l:il) . 
+                        \ "'" . i . "', ")
+            endfor
+            let l:il -= 1
+            call add(s:json2file_list, repeat(s:cdm_indent_token, l:il) . "], ")
+
+        elseif l:vt == 4
+            call add(s:json2file_list, 
+                    \ repeat(s:cdm_indent_token, l:il) . 
+                    \ "'" . l:key . "'" . " : " . "{")
+
+            let l:il += 1
+            call s:cdm_json_dip(l:il, l:value) 
+            let l:il -= 1
+            call add(s:json2file_list, repeat(s:cdm_indent_token, l:il) . "}, ")
+        endif
+    endfor 
+endf
+
+func! CsDbMgmt2File()
+    let s:json2file_list = []
+    let l:indent_level = 0
+    let l:json = s:cdm_get_json()
+
+    call add(s:json2file_list, '{') 
+    let l:indent_level += 1
+    call s:cdm_json_dip(l:indent_level, l:json) 
+    call add(s:json2file_list, '}') 
+    call writefile(s:json2file_list, '/tmp/json2file_list')
 endf
 
 func! s:cdm_buf_color()
