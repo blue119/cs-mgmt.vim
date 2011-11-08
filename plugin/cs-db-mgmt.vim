@@ -7,13 +7,25 @@
 "       simple item -> \ {O|X}\ {db_name}\ {timestamp}\ [Attach]
 "       it is a prj -> \ {prj_name}
 "                      \ \ \ \ \ {O|X}\ {db_name}\ {timestamp}\ [Attach]
-
-command! CsDbMgmt2File call CsDbMgmt2File()
-command! CsDbMgmt call CsDbMgmt()
-map <Leader>cs :call CsDbMgmt()<CR>
+"
+"      :CsDbMgmtAdd ('file' | 'url' | 'apt') {file path}
+"      it is going to take source code from file, web url, or dpkg, and put it
+"      to your g:CsDbMgmtDb/.source. it will add this source item to json file
+"      as well.
+"
+"      taking from apt, it will get source from apt mirrot server and do
+"      dpkg-source. it would provide a buffer to show mult-candidate when the
+"      package term is not precision.
+"
+"      take from file procedure: Now it only support tarball file
+"          1. checking file readable
+"          2. copy to g:CsDbMgmtDb/.source, and then unpack it
+"          3. add this item to json struct, and then write to file
+"          4. udpate the buffer of the cs-db-mgmt
+"          
 
 " debug mode on/off
-let s:debug_enable = 1
+let s:debug_enable = 0
 func! s:dprint(...)
     if s:debug_enable
         call Decho(a:000)
@@ -33,13 +45,155 @@ if !exists('g:CsDbMgmtConfigFile')
     let g:CsDbMgmtConfigFile = $HOME.'/.cs-db-mgmt.json'
 endif
 
-let s:CsDbMgmtDbStatus = {}
-let s:json2file_list = []
+" with CsDbMgmtAdd, that all source will be put into the folder.
+if !exists('g:CsDbMgmtSrcDepot')
+    let g:CsDbMgmtSrcDepot = g:CsDbMgmtDb . '.source_depot/'
+endif
+
+func! s:cdm_get_src_from_file(path)
+    if !filereadable(a:path)
+        echo a:path . ' is not readable.'
+        return
+    endif
+
+    let l:decomp_cmd = ''
+    let l:tmpfolder = ''
+    " to check compressed type
+    if a:path[-len(".tar.gz"):] == ".tar.gz"
+        let l:filename = split(a:path, '\/')[-1][:-len(".tar.gz")-1]
+        let l:tmpfolder = g:CsDbMgmtSrcDepot . l:filename . '.tmp'
+        let l:decomp_cmd = 'tar zxvf ' . a:path . ' -C ' . l:tmpfolder 
+    elseif a:path[-len(".tar.bz2"):] == ".tar.bz2"
+        let l:filename = split(a:path, '\/')[-1][:-len(".tar.bz2")-1] 
+        let l:tmpfolder = g:CsDbMgmtSrcDepot . l:filename . '.tmp'
+        let l:decomp_cmd = 'tar jxvf ' . a:path . ' -C ' . l:tmpfolder
+    else
+        echo 'the type of file do not support.'
+        return
+    endif
+
+    if isdirectory(l:tmpfolder)
+        echo l:tmpfolder . ' folder conflict!! you have to remove it before.'
+        return
+    else
+        " 1. create a tmp folder on g:CsDbMgmtSrcDepot that name is its file name.
+        if mkdir(l:tmpfolder) != 1
+            return
+        endif
+    endif
+
+    " 2. decompress into tmp folder
+    let ret = split(system(l:decomp_cmd), '\n')
+
+    " 3. if only one folder on tmp folder and same as ret[0]
+    "   move the folder to up-layer and del the tmp folder
+    " 4. if there are more file in the tmp folder, the tmp folder will
+    " become real folder
+    if match(ret[0], 'tar:') == 0
+        let ret = ret[1:]
+    endif
+
+    let l:first_folder = ret[0]
+    let l:bundle = 1
+    for f in ret[1:]
+        if match(f, l:first_folder, 0) != 0
+            let l:bundle = 0
+        endif
+    endfor
+
+    if l:bundle == 1
+        let l:finalfolder = g:CsDbMgmtSrcDepot . l:first_folder
+        if isdirectory(l:finalfolder)
+            call system('rm -rf ' . l:tmpfolder)
+            echo l:finalfolder . ' folder conflict!! you have to remove it before.'
+            return
+        else
+            call system( 
+                    \ printf('mv %s/%s %s', l:tmpfolder, l:first_folder, l:finalfolder))
+            call system('rm -rf ' . l:tmpfolder)
+        endif
+    else
+        let l:finalfolder = g:CsDbMgmtSrcDepot . l:filename
+        " call s:dprint(printf('mv %s %s', l:tmpfolder, l:finalfolder))
+        call system(printf('mv %s %s', l:tmpfolder, l:finalfolder))
+    endif
+
+    return l:finalfolder
+endf
+
+func! s:cdm_get_src_from_dir(path)
+    if !isdirectory(a:path)
+        echo a:path . ' is not directory.'
+        return
+    endif
+
+    return a:path
+endf
+
+
+" Examples
+" :CsDbMgmtAdd file /home/blue119/iLab/gspca-ps3eyeMT-0.5.tar.gz
+" :CsDbMgmtAdd dir /home/blue119/iLab/vte/lilyterm-0.9.8
+func! CsDbMgmtAdd(...) abort
+    " a:000[0]: protocol
+    " a:000[1]: file path
+    " a:000[2]: dbname <- it is not necessary.
+    if len(a:000) > 3 || len(a:000) < 2
+        echo ":CsDbMgmtAdd {prot type} {src path} [{dbname}]"
+        return
+    endif
+
+    if !isdirectory(g:CsDbMgmtSrcDepot)
+        call mkdir(g:CsDbMgmtSrcDepot)
+    endif
+
+    let l:prot_type = ['file', 'dir']
+    " TODO: ['url', 'apt']
+    " let l:prot_type = ['file', 'dir', 'url', 'apt']
+    let l:type = a:000[0]
+    let l:path = a:000[1]
+    let l:dbname = ''
+    if len(a:000) == 3
+        let l:dbname = a:000[2]
+        "check key whenter existed in json befor
+        if has_key(s:CsDbMgmtDbStatus, l:dbname)
+            echo l:dbname . " has existed in."
+            return
+        endif
+    endif
+
+    let l:type_func = ''
+    for t in l:prot_type
+        if l:type == t
+            let l:type_func = 's:cdm_get_src_from_' . l:type
+        endif
+    endfor
+
+    if l:type_func == ''
+        echo 'Not support '. l:type .' protocol type'
+        return
+    endif
+
+    let l:source_path = eval(l:type_func . '("' . l:path . '")')
+
+    if l:source_path == ''
+        return
+    endif
+
+    if l:dbname == ''
+        let l:dbname = split(l:source_path, '/')[-1]
+    endif
+
+    let s:CsDbMgmtDbStatus[l:dbname] = l:source_path
+    call s:cdm_json2file()
+    " TODO: add this item to json structure
+endf
 
 func! CsDbMgmt() abort
     call s:cdm_init_check()
     " call s:cdm_get_json()
-    call s:cdm_buf_show(s:cdm_buf_view(s:cdm_get_json()))
+    " call s:cdm_buf_show(s:cdm_buf_view(s:cdm_get_json()))
+    call s:cdm_buf_show(s:cdm_buf_view(s:CsDbMgmtDbStatus))
 endf
 
 func! s:cdm_buf_view(json)
@@ -212,10 +366,7 @@ func! s:cdm_init_check()
 endf
 
 func! s:cdm_get_json()
-    let s:cdm_db_status = {}
-    let s:CsDbMgmtDbStatus = eval(join(readfile(g:CsDbMgmtConfigFile)))
-
-    return s:CsDbMgmtDbStatus
+    return eval(join(readfile(g:CsDbMgmtConfigFile)))
 endf
 
 func! s:cdm_get_parent_list_from_buf(level, line, pos)
@@ -405,11 +556,11 @@ func! CsDbMgmtBuild(line, pos)
 
     let l:path_list = s:cdm_get_path_list_from_config(l:parent_list, l:dbname)
 
-    if type(l:path_list) == 1
-        let l:path_list = [l:path_list]
-    endif
+    " if type(l:path_list) == 1
+        " let l:path_list = [l:path_list]
+    " endif
 
-    for p in l:path_list
+    for p in (type(l:path_list) == 1 ? [l:path_list] : l:path_list)
         call s:cdm_path_walk(p, l:all_file_list)
     endfor
 
@@ -503,16 +654,16 @@ func! s:cdm_json_dip(indent_level, value)
     endfor 
 endf
 
-func! CsDbMgmt2File()
+func! s:cdm_json2file()
     let s:json2file_list = []
     let l:indent_level = 0
-    let l:json = s:cdm_get_json()
+    let l:json = s:CsDbMgmtDbStatus
 
     call add(s:json2file_list, '{') 
     let l:indent_level += 1
     call s:cdm_json_dip(l:indent_level, l:json) 
     call add(s:json2file_list, '}') 
-    call writefile(s:json2file_list, '/tmp/json2file_list')
+    call writefile(s:json2file_list, g:CsDbMgmtConfigFile)
 endf
 
 func! s:cdm_buf_color()
@@ -581,4 +732,12 @@ func! s:cdm_buf_show(content)
     exec ':'.(len(l:header) + 2)
     redraw!
 endf
+
+let s:CsDbMgmtDbStatus = s:cdm_get_json()
+let s:json2file_list = []
+
+command! -nargs=* CsDbMgmtAdd call CsDbMgmtAdd(<f-args>)
+" command! CsDbMgmt2File call CsDbMgmt2File()
+command! CsDbMgmt call CsDbMgmt()
+map <Leader>cs :call CsDbMgmt()<CR>
 
