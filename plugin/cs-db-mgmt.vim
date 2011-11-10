@@ -24,6 +24,11 @@
 "          4. udpate the buffer of the cs-db-mgmt
 "          
 
+if exists('g:loaded_cs_db_mgmt') || &cp
+  finish
+endif
+let g:loaded_cs_db_mgmt = 1
+
 " debug mode on/off
 let s:debug_enable = 0
 func! s:dprint(...)
