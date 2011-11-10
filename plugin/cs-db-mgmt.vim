@@ -366,7 +366,32 @@ func! s:cdm_init_check()
 endf
 
 func! s:cdm_get_json()
+    if !filereadable(g:CsDbMgmtConfigFile)
+        call writefile(["{'usr_include' : ['/usr/include/', ],}"], g:CsDbMgmtConfigFile )
+    endif
+
     return eval(join(readfile(g:CsDbMgmtConfigFile)))
+endf
+
+" look down and only included more level than it until it run into a blank line
+func! s:cdm_get_children_pos_list_from_buf(level, line, pos)
+    let l:pos = a:pos
+    let l:level = a:level
+    let l:children_pos_list = []
+
+    while 1
+        let l:pos += 1
+        if s:cdm_which_level_is_it(getline(l:pos)) > (l:level) 
+                \ && s:cdm_is_it_a_unexpect_line(getline(l:pos)) == 0
+            call insert(l:children_pos_list, l:pos, 0)
+        endif
+
+        if s:cdm_is_it_a_blank_line(getline(l:pos)) == 1
+            break
+        endif
+    endwhile
+
+    return l:children_pos_list
 endf
 
 func! s:cdm_get_parent_list_from_buf(level, line, pos)
@@ -399,8 +424,34 @@ func! s:cdm_get_parent_list_from_buf(level, line, pos)
     return l:parent_list
 endf
 
+func! s:cdm_is_it_a_comment(line)
+    if a:line[0] == '"' 
+        return 1
+    else
+        return 0
+    endif
+endf
+
+func! s:cdm_is_it_a_group_title(line)
+    if a:line[-1:] == ':'
+        return 1
+    else
+        return 0
+    endif
+endf
+
+func! s:cdm_is_it_a_blank_line(line)
+    if a:line == '' 
+        return 1
+    else
+        return 0
+    endif
+endf
+
 func! s:cdm_is_it_a_unexpect_line(line)
-    if a:line == '' || a:line[-1:] == ':' || a:line[0] == '"'
+    if   s:cdm_is_it_a_blank_line(a:line)
+    \ || s:cdm_is_it_a_group_title(a:line)
+    \ || s:cdm_is_it_a_comment(a:line)
         return 1
     else
         return 0
@@ -415,6 +466,58 @@ endf
 func! s:cdm_get_readonly_mode()
     setl nomodifiable
     setl buftype=nofile
+endf
+
+func! CsDbMgmtAttachByGroup(line, pos)
+    if s:cdm_is_it_a_group_title(a:line) == 0
+        " echo 'it is a unexpect line'
+        return
+    endif
+
+    let l:level = s:cdm_which_level_is_it(a:line)
+    let l:childre_pos_list = s:cdm_get_children_pos_list_from_buf(l:level, a:line, a:pos)
+    for p in l:childre_pos_list
+        call CsDbMgmtAttach(getline(p), p)
+    endfor
+endf
+
+func! CsDbMgmtDetachByGroup(line, pos)
+    if s:cdm_is_it_a_group_title(a:line) == 0
+        " echo 'it is a unexpect line'
+        return
+    endif
+
+    let l:level = s:cdm_which_level_is_it(a:line)
+    let l:childre_pos_list = s:cdm_get_children_pos_list_from_buf(l:level, a:line, a:pos)
+    for p in l:childre_pos_list
+        call CsDbMgmtDetach(getline(p), p)
+    endfor
+endf
+
+func! CsDbMgmtBuildByGroup(line, pos)
+    if s:cdm_is_it_a_group_title(a:line) == 0
+        " echo 'it is a unexpect line'
+        return
+    endif
+
+    let l:level = s:cdm_which_level_is_it(a:line)
+    let l:childre_pos_list = s:cdm_get_children_pos_list_from_buf(l:level, a:line, a:pos)
+    for p in l:childre_pos_list
+        call CsDbMgmtBuild(getline(p), p)
+    endfor
+endf
+
+func! CsDbMgmtRebuildByGroup(line, pos)
+    if s:cdm_is_it_a_group_title(a:line) == 0
+        " echo 'it is a unexpect line'
+        return
+    endif
+
+    let l:level = s:cdm_which_level_is_it(a:line)
+    let l:childre_pos_list = s:cdm_get_children_pos_list_from_buf(l:level, a:line, a:pos)
+    for p in l:childre_pos_list
+        call CsDbMgmtRebuild(getline(p), p)
+    endfor
 endf
 
 func! CsDbMgmtAttach(line, pos)
@@ -546,8 +649,8 @@ func! CsDbMgmtBuild(line, pos)
 
     if filereadable(g:CsDbMgmtDb.l:db_full_name.'.out')
         echohl WarningMsg 
-            \ | echo 'you can build it again. it has existed on '.g:CsDbMgmtDb.
-            \ '. you can try rebuild it.'
+            \ | echo 'it has existed on '.g:CsDbMgmtDb.
+            \ '. you can try to rebuild it.'
             \ | echohl None
         return
     endif
@@ -728,6 +831,10 @@ func! s:cdm_buf_show(content)
     nnoremap <buffer> d :call CsDbMgmtDetach(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <buffer> b :call CsDbMgmtBuild(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <buffer> r :call CsDbMgmtRebuild(printf("%s", getline('.')), line('.'))<CR>
+    nnoremap <buffer> A :call CsDbMgmtAttachByGroup(printf("%s", getline('.')), line('.'))<CR>
+    nnoremap <buffer> D :call CsDbMgmtDetachByGroup(printf("%s", getline('.')), line('.'))<CR>
+    nnoremap <buffer> B :call CsDbMgmtBuildByGroup(printf("%s", getline('.')), line('.'))<CR>
+    nnoremap <buffer> R :call CsDbMgmtRebuildByGroup(printf("%s", getline('.')), line('.'))<CR>
 
     exec ':'.(len(l:header) + 2)
     redraw!
