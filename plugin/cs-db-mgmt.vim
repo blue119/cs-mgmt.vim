@@ -128,7 +128,7 @@ endf
 
 func! s:cdm_get_src_from_dir(path)
     if !isdirectory(a:path)
-        echo a:path . ' is not directory.'
+        echo a:path . ' is not a directory.'
         return
     endif
 
@@ -179,6 +179,14 @@ func! CsDbMgmtAdd(...) abort
         return
     endif
 
+    if l:path[0] == '~'
+        let l:path = $HOME . l:path[1:]
+    elseif l:path[0] == '.'
+        let l:path = $PWD . l:path[1:]
+    elseif l:path[0:3] == '$PWD'
+        let l:path = $PWD . l:path[4:]
+    endif
+
     let l:source_path = eval(l:type_func . '("' . l:path . '")')
 
     if l:source_path == ''
@@ -191,7 +199,6 @@ func! CsDbMgmtAdd(...) abort
 
     let s:CsDbMgmtDbStatus[l:dbname] = l:source_path
     call s:cdm_json2file()
-    " TODO: add this item to json structure
 endf
 
 func! CsDbMgmt() abort
@@ -564,6 +571,46 @@ func! CsDbMgmtAttach(line, pos)
     exec "cs add ".g:CsDbMgmtDb.l:db_full_name.'.out'
 endf
 
+func! CsDbMgmtDelete(line, pos)
+
+    if s:cdm_is_it_a_unexpect_line(a:line) == 1
+        " echo 'it is a unexpect line'
+        return
+    endif
+
+    let l:db_level = s:cdm_which_level_is_it(a:line)
+    let l:parent_list = s:cdm_get_parent_list_from_buf(l:db_level, a:line, a:pos)
+    let l:dbname = s:get_db_item_name(a:line)
+
+    if len(l:parent_list) == 0 
+        let l:db_full_name = l:dbname
+        unlet l:parent_list
+        let l:parent_list = []
+    else
+        let l:db_full_name = join(l:parent_list, '_').'_'.l:dbname
+    endif
+
+    if index(s:db_attach_list, l:db_full_name) != -1
+        echohl TabLine
+            \ | echo l:dbname.' detach.... '
+            \ | echohl None
+
+        exec "cs kill ".g:CsDbMgmtDb.l:db_full_name.'.out'
+    endif
+
+
+    " look for key of deletion
+    let l:parent_key = s:CsDbMgmtDbStatus
+    for p in l:parent_list
+        let l:parent_key = l:parent_key[p]
+    endfor
+
+    " delete
+    unlet l:parent_key[l:dbname]
+    
+    call s:cdm_json2file()
+endf
+
 func! CsDbMgmtDetach(line, pos)
     if s:cdm_is_it_a_unexpect_line(a:line) == 1
         " echo 'it is a unexpect line'
@@ -602,7 +649,12 @@ func! s:cdm_path_walk(path, all_file_list)
         if isdirectory(file)
             call s:cdm_path_walk(file, a:all_file_list)
         else
-            if match(file, '\.[chsS]$') >= 0
+            if match(file, '\.[chsS]$') >= 0 ||
+                \ match(file, '\.cpp$') >= 0 ||
+                \ match(file, '\.cxx$') >= 0 ||
+                \ match(file, '\.CC$') >= 0 ||
+                \ match(file, '\.hpp$') >= 0 ||
+                \ match(file, '\.hxx$') >= 0
                 call add(a:all_file_list, file)
             endif
         endif
@@ -671,6 +723,14 @@ func! CsDbMgmtBuild(line, pos)
     for p in (type(l:path_list) == 1 ? [l:path_list] : l:path_list)
         call s:cdm_path_walk(p, l:all_file_list)
     endfor
+
+    if len(l:all_file_list) == 0
+        echohl WarningMsg 
+            \ | echo 'It is not finish to build cscope database,'
+            \ .  ' because no fidning any c or cpp file in ' . l:path_list
+            \ | echohl None
+        return
+    endif
 
     "write to file
     call writefile(l:all_file_list, g:CsDbMgmtDb.l:db_full_name.'.files')
@@ -796,7 +856,7 @@ endf
 
 func! s:cdm_buf_show(content)
 
-    exec 'silent pedit /tmp/.cs-db-mgmt.tmp'
+    exec 'silent pedit '.tempname()
 
     wincmd P | wincmd H
 
@@ -840,6 +900,9 @@ func! s:cdm_buf_show(content)
     nnoremap <buffer> D :call CsDbMgmtDetachByGroup(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <buffer> B :call CsDbMgmtBuildByGroup(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <buffer> R :call CsDbMgmtRebuildByGroup(printf("%s", getline('.')), line('.'))<CR>
+
+    " for edit
+    nnoremap <buffer> dd :call CsDbMgmtDelete(printf("%s", getline('.')), line('.'))<CR>
 
     exec ':'.(len(l:header) + 2)
     redraw!
