@@ -31,6 +31,7 @@ TODO
 ====
 # the db can add to project group using CsDbMgmtAdd. ex: CsDbMgmtAdd dir source_path db_name prj_1/sub_prj
 # We can edit this menu directly.
+# a hotkey to show db info
 
 0.05v
 -----

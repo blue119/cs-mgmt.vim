@@ -143,8 +143,10 @@ func! CsDbMgmtAdd(...) abort
     " a:000[0]: protocol
     " a:000[1]: file path
     " a:000[2]: dbname <- it is not necessary.
-    if len(a:000) > 3 || len(a:000) < 2
+    " a:000[3]: project path <- it is not necessary.
+    if len(a:000) > 4 || len(a:000) < 2
         echo ":CsDbMgmtAdd {prot type} {src path} [{dbname}]"
+        echo ":CsDbMgmtAdd {prot type} {src path} {dbname} [project path]"
         return
     endif
 
@@ -158,13 +160,45 @@ func! CsDbMgmtAdd(...) abort
     let l:type = a:000[0]
     let l:path = a:000[1]
     let l:dbname = ''
-    if len(a:000) == 3
+    let l:prj_parent = []
+    let l:prj_new = []
+    if len(a:000) > 2
         let l:dbname = a:000[2]
+
+        if len(a:000) == 4
+            " to verify the name conflict of the project path in CsDbMgmtDbStatus
+            " l:prj_new will leave its struct of dict for later
+            " l:prj_parent will save its parent path
+            let l:prj_new = split(a:000[3], "/")
+            let l:db = copy(s:CsDbMgmtDbStatus)
+            while len(l:prj_new)
+                let k = l:prj_new[0]
+                if has_key(l:db, k)
+                    if type(l:db[k]) != 4
+                        echoerr "name conflict."
+                        return
+                    endif
+                    call add(l:prj_parent, k)
+                    call remove(l:prj_new, 0)
+                    let l:db = l:db[k]
+                else
+                    break
+                endif
+            endwhile
+        endif "if len(a:000) == 4
+
         "check key whenter existed in json befor
-        if has_key(s:CsDbMgmtDbStatus, l:dbname)
-            echo l:dbname . " has existed in."
+        let l:db = s:CsDbMgmtDbStatus
+        " roll into its parent
+        for k in l:prj_parent
+            let l:db = l:db[k]
+        endfor
+
+        if has_key(l:db, l:dbname)
+            echo l:dbname . " has existed in " . join(l:prj_parent, "/") . "."
             return
         endif
+
     endif
 
     let l:type_func = ''
@@ -197,7 +231,37 @@ func! CsDbMgmtAdd(...) abort
         let l:dbname = split(l:source_path, '/')[-1]
     endif
 
-    let s:CsDbMgmtDbStatus[l:dbname] = l:source_path
+    " echo l:dbname
+    " echo l:source_path
+    " echo l:prj_parent
+    " echo l:prj_new
+
+    " craete add_dict
+    let l:add_dict = {}
+    if len(l:prj_new) != 0
+        let l:prj_new = reverse(l:prj_new)
+        let l:add_dict[l:prj_new[0]] = {l:dbname : [l:source_path]}
+        call remove(l:prj_new, 0)
+
+        while len(l:prj_new)
+            let l:add_dict = {l:prj_new[0]:copy(l:add_dict)}
+            call remove(l:prj_new, 0)
+        endwhile
+    endif
+
+    " find adding entrance
+    let l:db = s:CsDbMgmtDbStatus
+    while len(l:prj_parent)
+        let l:db = l:db[l:prj_parent[0]]
+        call remove(l:prj_parent, 0)
+    endwhile
+
+    if len(l:add_dict)
+        let l:db[keys(l:add_dict)[0]] = values(l:add_dict)[0]
+    els
+        let l:db[l:dbname] = [l:source_path]
+    endif
+
     call s:cdm_json2file()
 endf
 
@@ -896,6 +960,7 @@ func! s:cdm_buf_show(content)
     nnoremap <buffer> d :call CsDbMgmtDetach(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <buffer> b :call CsDbMgmtBuild(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <buffer> r :call CsDbMgmtRebuild(printf("%s", getline('.')), line('.'))<CR>
+
     nnoremap <buffer> A :call CsDbMgmtAttachByGroup(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <buffer> D :call CsDbMgmtDetachByGroup(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <buffer> B :call CsDbMgmtBuildByGroup(printf("%s", getline('.')), line('.'))<CR>
