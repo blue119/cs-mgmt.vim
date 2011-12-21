@@ -637,13 +637,7 @@ func! CsDbMgmtAttach(line, pos)
     exec "cs add ".g:CsDbMgmtDb.l:db_full_name.'.out'
 endf
 
-func! CsDbMgmtDelete(line, pos)
-
-    if s:cdm_is_it_a_unexpect_line(a:line) == 1
-        " echo 'it is a unexpect line'
-        return
-    endif
-
+func! s:cdm_del_db(line, pos)
     let l:db_level = s:cdm_which_level_is_it(a:line)
     let l:parent_list = s:cdm_get_parent_list_from_buf(l:db_level, a:line, a:pos)
     let l:dbname = s:get_db_item_name(a:line)
@@ -664,7 +658,6 @@ func! CsDbMgmtDelete(line, pos)
         exec "cs kill ".g:CsDbMgmtDb.l:db_full_name.'.out'
     endif
 
-
     " look for key of deletion
     let l:parent_key = s:CsDbMgmtDbStatus
     for p in l:parent_list
@@ -676,6 +669,55 @@ func! CsDbMgmtDelete(line, pos)
     
     call s:cdm_json2file()
     call s:cdm_buf_refresh(line("."))
+endf
+
+func! CsDbMgmtDelete(line, pos)
+    " TODO: so ugly, need refactory
+    if s:cdm_is_it_a_unexpect_line(a:line) == 1
+        " echo 'it is a unexpect line'
+        
+        if s:cdm_is_it_a_group_title(a:line) == 1
+            " find childrens
+
+            let l:level = s:cdm_which_level_is_it(a:line)
+            let l:dbname = s:cdm_str_strip(getline(a:pos))[:-2]
+            let l:pos = a:pos
+
+            while 1
+                let l:pos += 1
+                if s:cdm_which_level_is_it(getline(l:pos)) <= l:level
+                    break
+                endif
+
+                let l:line = getline(l:pos)
+                if s:cdm_is_it_a_unexpect_line(l:line) == 0
+                    echo l:line
+                    " call s:cdm_del_db(l:line, l:pos)
+                endif
+            endwhile
+
+            let l:parent_list = s:cdm_get_parent_list_from_buf(l:level, a:line, a:pos)
+            if len(l:parent_list) == 0 
+                unlet l:parent_list
+                let l:parent_list = []
+            endif
+
+            let l:parent_key = s:CsDbMgmtDbStatus
+            for p in l:parent_list
+                let l:parent_key = l:parent_key[p]
+            endfor
+
+            " delete
+            unlet l:parent_key[l:dbname]
+
+            call s:cdm_json2file()
+            call s:cdm_buf_refresh(line("."))
+        endif
+
+        return
+    else
+        call s:cdm_del_db(a:line, a:pos)
+    endif
 endf
 
 func! CsDbMgmtDetach(line, pos)
@@ -960,6 +1002,7 @@ func! s:cdm_buf_show(content)
     wincmd P | wincmd H
 
     let s:cdm_view = bufnr('%')
+    " TODO: refactory
     " call cdm_buf_refresh(a:content)
     call append(0, s:header)
 
@@ -999,6 +1042,7 @@ func! s:cdm_buf_show(content)
     nnoremap <buffer> R :call CsDbMgmtRebuildByGroup(printf("%s", getline('.')), line('.'))<CR>
 
     " for edit
+    " deleting a db entry, but don't delete real file.
     nnoremap <buffer> dd :call CsDbMgmtDelete(printf("%s", getline('.')), line('.'))<CR>
 
     exec ':'.(len(s:header) + 2)
