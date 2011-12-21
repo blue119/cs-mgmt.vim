@@ -187,18 +187,19 @@ func! CsDbMgmtAdd(...) abort
             endwhile
         endif "if len(a:000) == 4
 
-        "check key whenter existed in json befor
-        let l:db = s:CsDbMgmtDbStatus
-        " roll into its parent
-        for k in l:prj_parent
-            let l:db = l:db[k]
-        endfor
+        if !len(l:prj_new)
+            "check key whenter existed in json befor
+            let l:db = s:CsDbMgmtDbStatus
+            " roll into its parent
+            for k in l:prj_parent
+                let l:db = l:db[k]
+            endfor
 
-        if has_key(l:db, l:dbname)
-            echo l:dbname . " has existed in " . join(l:prj_parent, "/") . "."
-            return
-        endif
-
+            if has_key(l:db, l:dbname)
+                echo l:dbname . " has existed in " . join(l:prj_parent, "/") . "."
+                return
+            endif
+        endif " if len(l:prj_new)
     endif
 
     let l:type_func = ''
@@ -263,6 +264,7 @@ func! CsDbMgmtAdd(...) abort
     endif
 
     call s:cdm_json2file()
+    call s:cdm_buf_refresh(0)
 endf
 
 func! CsDbMgmt() abort
@@ -673,6 +675,7 @@ func! CsDbMgmtDelete(line, pos)
     unlet l:parent_key[l:dbname]
     
     call s:cdm_json2file()
+    call s:cdm_buf_refresh(line("."))
 endf
 
 func! CsDbMgmtDetach(line, pos)
@@ -918,29 +921,58 @@ func! s:cdm_buf_color()
     call matchadd('cdm_db_item_status_nonexist', '^\s\{}X', 99)
 endf
 
+func! s:cdm_buf_refresh(line)
+    if buflisted(s:cdm_view)
+        call s:cdm_get_write_mode()
+
+        " delete all line in buffer
+        let l:header_size = len(s:header) + 2
+        exec l:header_size. ",$d"
+
+        " update buffer
+
+        for i in s:cdm_buf_view(s:CsDbMgmtDbStatus)
+            if s:cdm_which_level_is_it(i) == 0
+                if line('$') != len(s:header) + 1
+                    call append(line('$'), '')
+                endif
+            endif
+            call append(line('$'), i)
+        endfor 
+
+        call s:cdm_get_readonly_mode()
+    endif
+
+    if a:line
+        exec ':' . a:line
+    endif
+endf
+
+let s:header = ['" Press a to attach', 
+                \ '" Press d to detach',
+                \ '" Press b to build db',
+                \ '" Press r to rebuild db']
+
 func! s:cdm_buf_show(content)
 
     exec 'silent pedit '.tempname()
 
     wincmd P | wincmd H
 
-    let g:cdm_view = bufnr('%')
-    let l:header = ['" Press a to attach', 
-                  \ '" Press d to detach',
-                  \ '" Press b to build db',
-                  \ '" Press r to rebuild db']
-    call append(0, l:header)
+    let s:cdm_view = bufnr('%')
+    " call cdm_buf_refresh(a:content)
+    call append(0, s:header)
 
     for i in a:content
         if s:cdm_which_level_is_it(i) == 0
-            if line('$') != len(l:header) + 1
+            if line('$') != len(s:header) + 1
                 call append(line('$'), '')
             endif
             " call s:dprint(i)
         endif
         call append(line('$'), i)
     endfor 
-    " call append(len(l:header)+1, a:content)
+   " call append(len(l:header)+1, a:content)
 
     setl buftype=nofile
     setl noswapfile
@@ -969,7 +1001,7 @@ func! s:cdm_buf_show(content)
     " for edit
     nnoremap <buffer> dd :call CsDbMgmtDelete(printf("%s", getline('.')), line('.'))<CR>
 
-    exec ':'.(len(l:header) + 2)
+    exec ':'.(len(s:header) + 2)
     redraw!
 endf
 
