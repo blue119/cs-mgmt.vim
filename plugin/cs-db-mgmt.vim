@@ -165,6 +165,13 @@ func! CsDbMgmtAdd(...) abort
     if len(a:000) > 2
         let l:dbname = a:000[2]
 
+        " check reserved words in filename
+        if len(s:cdm_filename_resv_words(l:dbname))
+            echohl WarningMsg 
+                \ | echo "Don't contain reserved words in dbname."
+                \ | echohl None
+            return
+
         if len(a:000) == 4
             " to verify the name conflict of the project path in CsDbMgmtDbStatus
             " l:prj_new will leave its struct of dict for later
@@ -175,7 +182,9 @@ func! CsDbMgmtAdd(...) abort
                 let k = l:prj_new[0]
                 if has_key(l:db, k)
                     if type(l:db[k]) != 4
-                        echoerr "name conflict."
+                        echohl WarningMsg 
+                            \ | echo "name conflict."
+                            \ | echohl None
                         return
                     endif
                     call add(l:prj_parent, k)
@@ -343,7 +352,14 @@ let s:db_exist_re = '^\(\s\{}\)'
                 \ .'\([0-9a-zA-Z\-._~]\{}\)\s\{}'
                 \ .'\(\d\{4}\.\d\{2}\.\d\{2}\s\d\{2}\:\d\{2}\)'
                 \ .'\(Attach\)\{}'
-                
+
+
+" Reserved characters and words
+func! s:cdm_filename_resv_words(str)
+    let l:resv_words_re = '[\/\\\?\%\*\:\|\"\>\<]'
+    return matchstr(a:str, l:resv_words_re)
+endf
+
 func! s:cdm_str_strip(str)
     let l:str_strip_re = '^\s\{}\(.*\)\s\{}$'
     let l:l = matchstr(a:str, l:str_strip_re)
