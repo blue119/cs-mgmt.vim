@@ -24,13 +24,15 @@ Plan Versoins
 # support multi-FileList
 # support multi deep layer json structure. 
 # it look more colorful
-
 # support attach or detach by group.
+
+0.04v
+-----
+# buffer window can be edit
+# can add a db placed in project using CsDbMgmtAdd
 
 TODO
 ====
-# the db can add to project group using CsDbMgmtAdd. ex: CsDbMgmtAdd dir source_path db_name prj_1/sub_prj
-# We can edit this menu directly.
 # a hotkey to show db info
 
 0.05v
