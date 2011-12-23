@@ -274,7 +274,7 @@ func! CsDbMgmtAdd(...) abort
     endif
 
     call s:cdm_json2file()
-    call s:cdm_buf_refresh(0)
+    call s:cdm_buf_refresh(line("."))
 endf
 
 func! CsDbMgmt() abort
@@ -982,29 +982,34 @@ func! s:cdm_buf_color()
 endf
 
 func! s:cdm_buf_refresh(line)
-    if buflisted(s:cdm_view)
-        call s:cdm_get_write_mode()
+    if buflisted(g:cdm_view)
+        " if it isn't on cdm_view, closing buf then reopen.
+        if g:cdm_view != bufnr('%')
+            call s:cdm_buf_show(s:cdm_buf_view(s:CsDbMgmtDbStatus))
+            wincmd l
+        else
+            call s:cdm_get_write_mode()
 
-        " delete all line in buffer
-        let l:header_size = len(s:header) + 2
-        exec l:header_size. ",$d"
+            " delete all line in buffer
+            let l:header_size = len(s:header) + 2
+            exec l:header_size. ",$d"
 
-        " update buffer
-
-        for i in s:cdm_buf_view(s:CsDbMgmtDbStatus)
-            if s:cdm_which_level_is_it(i) == 0
-                if line('$') != len(s:header) + 1
-                    call append(line('$'), '')
+            " update buffer
+            for i in s:cdm_buf_view(s:CsDbMgmtDbStatus)
+                if s:cdm_which_level_is_it(i) == 0
+                    if line('$') != len(s:header) + 1
+                        call append(line('$'), '')
+                    endif
                 endif
-            endif
-            call append(line('$'), i)
-        endfor 
+                call append(line('$'), i)
+            endfor 
 
-        call s:cdm_get_readonly_mode()
-    endif
+            call s:cdm_get_readonly_mode()
+        endif
 
-    if a:line
-        exec ':' . a:line
+        if a:line
+            exec ':' . a:line
+        endif
     endif
 endf
 
@@ -1014,12 +1019,15 @@ let s:header = ['" Press a to attach',
                 \ '" Press r to rebuild db']
 
 func! s:cdm_buf_show(content)
+    if exists('g:cdm_view') && bufloaded(g:cdm_view)
+        exec g:cdm_view.'bd!'
+    endif
 
     exec 'silent pedit '.tempname()
 
     wincmd P | wincmd H
 
-    let s:cdm_view = bufnr('%')
+    let g:cdm_view = bufnr('%')
     " TODO: refactory
     " call cdm_buf_refresh(a:content)
     call append(0, s:header)
