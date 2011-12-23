@@ -171,6 +171,7 @@ func! CsDbMgmtAdd(...) abort
                 \ | echo "Don't contain reserved words in dbname."
                 \ | echohl None
             return
+        endif
 
         if len(a:000) == 4
             " to verify the name conflict of the project path in CsDbMgmtDbStatus
@@ -689,6 +690,7 @@ endf
 
 func! CsDbMgmtDelete(line, pos)
     " TODO: so ugly, need refactory
+    " TODO: should to used recursive method
     if s:cdm_is_it_a_unexpect_line(a:line) == 1
         " echo 'it is a unexpect line'
         
@@ -707,8 +709,8 @@ func! CsDbMgmtDelete(line, pos)
 
                 let l:line = getline(l:pos)
                 if s:cdm_is_it_a_unexpect_line(l:line) == 0
-                    echo l:line
-                    " call s:cdm_del_db(l:line, l:pos)
+                    " echo l:line
+                    call s:cdm_del_db(l:line, l:pos)
                 endif
             endwhile
 
