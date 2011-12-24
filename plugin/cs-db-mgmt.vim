@@ -637,9 +637,9 @@ func! CsDbMgmtAttach(line, pos)
                 \   (join(l:parent_list, '_').'_'.l:dbname)
 
     if index(s:db_attach_list, l:db_full_name) != -1
-        echohl WarningMsg 
-            \ | echo "Don\'t Attach Twice"
-            \ | echohl None
+        " echohl WarningMsg 
+            " \ | echo "Don\'t Attach Twice"
+            " \ | echohl None
         return
     endif
 
@@ -655,27 +655,18 @@ func! CsDbMgmtAttach(line, pos)
 endf
 
 func! s:cdm_del_db(line, pos)
+    if s:cdm_is_it_a_unexpect_line(a:line) == 1
+        " echo 'it is a unexpect line'
+        return
+    endif
+
+    " if it has attached
+    call CsDbMgmtDetach(a:line, a:pos)
+
+    " look for key of deletion
     let l:db_level = s:cdm_which_level_is_it(a:line)
     let l:parent_list = s:cdm_get_parent_list_from_buf(l:db_level, a:line, a:pos)
     let l:dbname = s:get_db_item_name(a:line)
-
-    if len(l:parent_list) == 0 
-        let l:db_full_name = l:dbname
-        unlet l:parent_list
-        let l:parent_list = []
-    else
-        let l:db_full_name = join(l:parent_list, '_').'_'.l:dbname
-    endif
-
-    if index(s:db_attach_list, l:db_full_name) != -1
-        echohl TabLine
-            \ | echo l:dbname.' detach.... '
-            \ | echohl None
-
-        exec "cs kill ".g:CsDbMgmtDb.l:db_full_name.'.out'
-    endif
-
-    " look for key of deletion
     let l:parent_key = s:CsDbMgmtDbStatus
     for p in l:parent_list
         let l:parent_key = l:parent_key[p]
@@ -683,58 +674,52 @@ func! s:cdm_del_db(line, pos)
 
     " delete
     unlet l:parent_key[l:dbname]
-    
-    call s:cdm_json2file()
-    call s:cdm_buf_refresh(line("."))
+endf
+
+func! s:cdm_del_db_by_group(line, pos)
+    " find childrens
+    let l:level = s:cdm_which_level_is_it(a:line)
+    let l:dbname = s:cdm_str_strip(getline(a:pos))[:-2]
+    let l:pos = a:pos
+
+    while 1
+        let l:pos += 1
+        if s:cdm_which_level_is_it(getline(l:pos)) <= l:level
+            break
+        endif
+
+        let l:line = getline(l:pos)
+        if s:cdm_is_it_a_unexpect_line(l:line) == 0
+            " echo l:line
+            call s:cdm_del_db(l:line, l:pos)
+        endif
+    endwhile
+
+    let l:parent_list = s:cdm_get_parent_list_from_buf(l:level, a:line, a:pos)
+    if len(l:parent_list) == 0 
+        unlet l:parent_list
+        let l:parent_list = []
+    endif
+
+    let l:parent_key = s:CsDbMgmtDbStatus
+    for p in l:parent_list
+        let l:parent_key = l:parent_key[p]
+    endfor
+
+    " delete
+    unlet l:parent_key[l:dbname]
 endf
 
 func! CsDbMgmtDelete(line, pos)
-    " TODO: so ugly, need refactory
-    " TODO: should to used recursive method
     if s:cdm_is_it_a_unexpect_line(a:line) == 1
-        " echo 'it is a unexpect line'
-        
         if s:cdm_is_it_a_group_title(a:line) == 1
-            " find childrens
-
-            let l:level = s:cdm_which_level_is_it(a:line)
-            let l:dbname = s:cdm_str_strip(getline(a:pos))[:-2]
-            let l:pos = a:pos
-
-            while 1
-                let l:pos += 1
-                if s:cdm_which_level_is_it(getline(l:pos)) <= l:level
-                    break
-                endif
-
-                let l:line = getline(l:pos)
-                if s:cdm_is_it_a_unexpect_line(l:line) == 0
-                    " echo l:line
-                    call s:cdm_del_db(l:line, l:pos)
-                endif
-            endwhile
-
-            let l:parent_list = s:cdm_get_parent_list_from_buf(l:level, a:line, a:pos)
-            if len(l:parent_list) == 0 
-                unlet l:parent_list
-                let l:parent_list = []
-            endif
-
-            let l:parent_key = s:CsDbMgmtDbStatus
-            for p in l:parent_list
-                let l:parent_key = l:parent_key[p]
-            endfor
-
-            " delete
-            unlet l:parent_key[l:dbname]
-
-            call s:cdm_json2file()
-            call s:cdm_buf_refresh(line("."))
+            " delete a group
+            call s:cdm_del_db_by_group(a:line, a:pos)
+        else
+            call s:cdm_del_db(a:line, a:pos)
         endif
-
-        return
-    else
-        call s:cdm_del_db(a:line, a:pos)
+        call s:cdm_json2file()
+        call s:cdm_buf_refresh(line("."))
     endif
 endf
 
@@ -753,9 +738,9 @@ func! CsDbMgmtDetach(line, pos)
                 \   (join(l:parent_list, '_').'_'.l:dbname)
 
     if index(s:db_attach_list, l:db_full_name) == -1
-        echohl WarningMsg 
-            \ | echo "Need Attach Befor"
-            \ | echohl None
+        " echohl WarningMsg 
+            " \ | echo "Need Attach Befor"
+            " \ | echohl None
         return
     endif
 
