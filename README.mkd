@@ -33,12 +33,17 @@ Plan Versoins
 
 TODO
 ====
-# a hotkey to show db info
+# man funtion of CsDbMgmt splited to multi-subfunction.
+# support a shell cmd to build cscope.file from CsDbMgmtAdd cmd.
+# I can refer to taglist.vim to improve my buffer window control
+# CsDbMgmt -> CsMgmt
 
 0.05v
 -----
-# the db file will be auto-update when file be update.
 
 wish
 ----
-# prj name can be included space
+# a hotkey to show db info
+# the db file will be auto-update when file be update.
+
+
