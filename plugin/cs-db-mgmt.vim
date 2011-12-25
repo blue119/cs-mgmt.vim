@@ -37,6 +37,13 @@ func! s:dprint(...)
     endif
 endf
 
+" echo for warning
+func! s:echo_waring(msg)
+    echohl WarningMsg 
+        \ | echo a:msg
+        \ | echohl None
+endf
+
 " where are your database
 if !exists('g:CsDbMgmtDb')
     let g:CsDbMgmtDb = $HOME.'/.cs-db-mgmt/'
@@ -167,9 +174,7 @@ func! CsDbMgmtAdd(...) abort
 
         " check reserved words in filename
         if len(s:cdm_filename_resv_words(l:dbname))
-            echohl WarningMsg 
-                \ | echo "Don't contain reserved words in dbname."
-                \ | echohl None
+            call s:echo_waring("Don't contain reserved words in dbname.")
             return
         endif
 
@@ -184,9 +189,7 @@ func! CsDbMgmtAdd(...) abort
             for i in split(a:000[3], "/")
                 if len(i)
                     if len(s:cdm_filename_resv_words(i))
-                        echohl WarningMsg 
-                            \ | echo "Don't contain reserved words in group name."
-                            \ | echohl None
+                        call s:echo_waring("Don't contain reserved words in group name.")
                         return
                     endif
                     call add(l:prj_new, i)
@@ -198,9 +201,7 @@ func! CsDbMgmtAdd(...) abort
                 let k = l:prj_new[0]
                 if has_key(l:db, k)
                     if type(l:db[k]) != 4
-                        echohl WarningMsg 
-                            \ | echo "name conflict."
-                            \ | echohl None
+                        call s:echo_waring("name conflict.")
                         return
                     endif
                     call add(l:prj_parent, k)
@@ -637,9 +638,7 @@ func! CsDbMgmtAttach(line, pos)
     endif
 
     if s:cdm_str_strip(a:line)[0] == s:db_nonexist_token
-        echohl WarningMsg 
-            \ | echo "Hasn't build"
-            \ | echohl None
+        call s:echo_waring("Hasn't build") 
         return
     endif
 
@@ -652,9 +651,7 @@ func! CsDbMgmtAttach(line, pos)
                 \   (join(l:parent_list, '_').'_'.l:dbname)
 
     if index(s:db_attach_list, l:db_full_name) != -1
-        " echohl WarningMsg 
-            " \ | echo "Don\'t Attach Twice"
-            " \ | echohl None
+        " call s:echo_waring("Don\'t Attach Twice") 
         return
     endif
 
@@ -753,9 +750,7 @@ func! CsDbMgmtDetach(line, pos)
                 \   (join(l:parent_list, '_').'_'.l:dbname)
 
     if index(s:db_attach_list, l:db_full_name) == -1
-        " echohl WarningMsg 
-            " \ | echo "Need Attach Befor"
-            " \ | echohl None
+        call s:echo_waring("Need Attach Befor") 
         return
     endif
 
@@ -832,10 +827,9 @@ func! CsDbMgmtBuild(line, pos)
                 \   (l:parent.'_'.l:dbname)
 
     if filereadable(g:CsDbMgmtDb.l:db_full_name.'.out')
-        echohl WarningMsg 
-            \ | echo 'it has existed on '.g:CsDbMgmtDb.
-            \ '. you can try to rebuild it.'
-            \ | echohl None
+        let l:msg = "it has existed on " . g:CsDbMgmtDb 
+                    \ . ' you can try to rebuild it.'
+        call s:echo_waring(l:msg)
         return
     endif
 
@@ -852,10 +846,9 @@ func! CsDbMgmtBuild(line, pos)
     endfor
 
     if len(l:all_file_list) == 0
-        echohl WarningMsg 
-            \ | echo 'It is not finish to build cscope database,'
+        let l:msg =  'It is not finish to build cscope database,'
             \ .  ' because no fidning any c or cpp file in ' . l:path_list
-            \ | echohl None
+        call s:echo_waring(l:msg)
         return
     endif
 
@@ -891,10 +884,9 @@ func! CsDbMgmtRebuild(line, pos)
                 \   (l:parent.'_'.l:dbname)
 
     if !filereadable(g:CsDbMgmtDb.l:db_full_name.'.out')
-        echohl WarningMsg 
-            \ | echo l:dbname.' not existed on '.g:CsDbMgmtDb.
-            \ ' you have to build it at first.'
-            \ | echohl None
+        let l:msg =  l:dbname.' not existed on '.g:CsDbMgmtDb.
+                    \ ' you have to build it at first.'
+        call s:echo_waring(l:msg)
         return
     endif
 

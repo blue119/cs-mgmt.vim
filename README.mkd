@@ -33,7 +33,6 @@ Plan Versoins
 
 TODO
 ====
-# man funtion of CsDbMgmt splited to multi-subfunction.
 # support a shell cmd to build cscope.file from CsDbMgmtAdd cmd.
 # I can refer to taglist.vim to improve my buffer window control
 # CsDbMgmt -> CsMgmt
