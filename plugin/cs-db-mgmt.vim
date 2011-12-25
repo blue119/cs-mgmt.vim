@@ -175,9 +175,24 @@ func! CsDbMgmtAdd(...) abort
 
         if len(a:000) == 4
             " to verify the name conflict of the project path in CsDbMgmtDbStatus
-            " l:prj_new will leave its struct of dict for later
+            " l:prj_new will save its struct of dict for later
             " l:prj_parent will save its parent path
-            let l:prj_new = split(a:000[3], "/")
+            "
+            " to check reserved words in prj_new excepting '/' word, and
+            " reduce the repeating '/' to onece.
+            let l:prj_new = []
+            for i in split(a:000[3], "/")
+                if len(i)
+                    if len(s:cdm_filename_resv_words(i))
+                        echohl WarningMsg 
+                            \ | echo "Don't contain reserved words in group name."
+                            \ | echohl None
+                        return
+                    endif
+                    call add(l:prj_new, i)
+                endif
+            endfor
+
             let l:db = copy(s:CsDbMgmtDbStatus)
             while len(l:prj_new)
                 let k = l:prj_new[0]
