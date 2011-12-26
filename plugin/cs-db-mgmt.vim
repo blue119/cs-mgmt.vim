@@ -142,6 +142,40 @@ func! s:cdm_get_src_from_dir(path)
     return a:path
 endf
 
+" to verify the name conflict of the project path in CsDbMgmtDbStatus
+" return [g_parent, g_name]
+func! s:parser_grouping_name(group)
+    " to check reserved words in prj_new excepting '/' word, and
+    " reduce the repeating '/' to onece.
+    let l:prj_new = []
+    let l:prj_parent = []
+    for i in split(a:group, "/")
+        if len(i)
+            if len(s:cdm_filename_resv_words(i))
+                call s:echo_waring("Don't contain reserved words in group name.")
+                return
+            endif
+            call add(l:prj_new, i)
+        endif
+    endfor
+
+    let l:db = copy(s:CsDbMgmtDbStatus)
+    while len(l:prj_new)
+        let k = l:prj_new[0]
+        if has_key(l:db, k)
+            if type(l:db[k]) != 4
+                call s:echo_waring("name conflict.")
+                return
+            endif
+            call add(l:prj_parent, k)
+            call remove(l:prj_new, 0)
+            let l:db = l:db[k]
+        else
+            break
+        endif
+    endwhile
+    return [l:prj_new, l:prj_parent]
+endf
 
 " Examples
 " :CsDbMgmtAdd file /home/blue119/iLab/gspca-ps3eyeMT-0.5.tar.gz
@@ -179,50 +213,23 @@ func! CsDbMgmtAdd(...) abort
         endif
 
         if len(a:000) == 4
-            " to verify the name conflict of the project path in CsDbMgmtDbStatus
-            " l:prj_new will save its struct of dict for later
-            " l:prj_parent will save its parent path
-            "
-            " to check reserved words in prj_new excepting '/' word, and
-            " reduce the repeating '/' to onece.
-            let l:prj_new = []
-            for i in split(a:000[3], "/")
-                if len(i)
-                    if len(s:cdm_filename_resv_words(i))
-                        call s:echo_waring("Don't contain reserved words in group name.")
-                        return
-                    endif
-                    call add(l:prj_new, i)
-                endif
-            endfor
-
-            let l:db = copy(s:CsDbMgmtDbStatus)
-            while len(l:prj_new)
-                let k = l:prj_new[0]
-                if has_key(l:db, k)
-                    if type(l:db[k]) != 4
-                        call s:echo_waring("name conflict.")
-                        return
-                    endif
-                    call add(l:prj_parent, k)
-                    call remove(l:prj_new, 0)
-                    let l:db = l:db[k]
-                else
-                    break
-                endif
-            endwhile
-        endif "if len(a:000) == 4
+            let grouping = s:parser_grouping_name(a:000[3])
+            let l:prj_new = grouping[0]
+            let l:prj_parent = grouping[1]
+        endif
 
         if !len(l:prj_new)
             "check key whenter existed in json befor
             let l:db = s:CsDbMgmtDbStatus
+
             " roll into its parent
             for k in l:prj_parent
                 let l:db = l:db[k]
             endfor
 
             if has_key(l:db, l:dbname)
-                echo l:dbname . " has existed in " . join(l:prj_parent, "/") . "."
+                call s:echo_waring( l:dbname . " has existed in " 
+                            \ . join(l:prj_parent, "/") . ".")
                 return
             endif
         endif " if len(l:prj_new)
@@ -257,11 +264,6 @@ func! CsDbMgmtAdd(...) abort
     if l:dbname == ''
         let l:dbname = split(l:source_path, '/')[-1]
     endif
-
-    " echo l:dbname
-    " echo l:source_path
-    " echo l:prj_parent
-    " echo l:prj_new
 
     " craete add_dict
     let l:add_dict = {}
@@ -750,7 +752,7 @@ func! CsDbMgmtDetach(line, pos)
                 \   (join(l:parent_list, '_').'_'.l:dbname)
 
     if index(s:db_attach_list, l:db_full_name) == -1
-        call s:echo_waring("Need Attach Befor") 
+        " call s:echo_waring("Need Attach Befor") 
         return
     endif
 
@@ -1071,7 +1073,6 @@ let s:CsDbMgmtDbStatus = s:cdm_get_json()
 let s:json2file_list = []
 
 command! -nargs=* CsDbMgmtAdd call CsDbMgmtAdd(<f-args>)
-" command! CsDbMgmt2File call CsDbMgmt2File()
 command! CsDbMgmt call CsDbMgmt()
 map <Leader>cs :call CsDbMgmt()<CR>
 
