@@ -34,8 +34,6 @@ Plan Versoins
 TODO
 ====
 # support a shell cmd to build cscope.file from CsDbMgmtAdd cmd.
-# I can refer to taglist.vim to improve my buffer window control
-# CsDbMgmt -> CsMgmt
 
 0.05v
 -----
