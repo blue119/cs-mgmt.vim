@@ -198,6 +198,12 @@ func! CsMgmtAdd(...) abort
         return
     endif
 
+    if !exists('g:cm_view') 
+        if s:cm_init_check() == -1
+            return
+        endif
+    endif
+
     if !isdirectory(g:CsMgmtSrcDepot)
         call mkdir(g:CsMgmtSrcDepot)
     endif
@@ -314,7 +320,10 @@ func! CsMgmtAdd(...) abort
 endf
 
 func! CsMgmt() abort
-    call s:cm_init_check()
+    if s:cm_init_check() == -1
+        return
+    endif
+
     call s:cm_buf_show(s:cm_buf_view(s:cm_get_db()))
 endf
 
@@ -485,12 +494,19 @@ endf
 func! s:cm_init_check()
     if !filereadable(g:CsMgmtDbFile)
         call s:echo_waring( "you need have a config file befor" )
-        return
+        return -1
     endif
 
     if !isdirectory(g:CsMgmtRefHome)
-        call s:echo_waring( g:CsMgmtRefHome . " must be a directory." )
-        return
+        if filereadable(g:CsMgmtRefHome)
+            call s:echo_waring( g:CsMgmtRefHome . " must be a directory." )
+            return -1
+        endif
+
+        if mkdir(g:CsMgmtRefHome) != 1
+            call s:echo_waring( 'Can not create ' . g:CsMgmtRefHome)
+            return -1
+        endif
     endif
 endf
 
