@@ -728,9 +728,12 @@ func! s:cm_del_db(line, pos)
     let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
     let l:ref_name = s:get_ref_item_name(a:line)
     let l:parent_key = s:cm_get_db()
-    for p in l:parent_list
-        let l:parent_key = l:parent_key[p]
-    endfor
+
+    if len(l:parent_list)
+        for p in l:parent_list
+            let l:parent_key = l:parent_key[p]
+        endfor
+    endif
 
     " delete
     unlet l:parent_key[l:ref_name]
@@ -756,28 +759,29 @@ func! s:cm_del_db_by_group(line, pos)
     endwhile
 
     let l:parent_list = s:cm_get_parent_list_from_buf(l:level, a:line, a:pos)
-    if len(l:parent_list) == 0 
-        unlet l:parent_list
-        let l:parent_list = []
-    endif
-
     let l:parent_key = s:cm_get_db()
-    for p in l:parent_list
-        let l:parent_key = l:parent_key[p]
-    endfor
+
+    if len(l:parent_list)
+        for p in l:parent_list
+            let l:parent_key = l:parent_key[p]
+        endfor
+    endif
 
     " delete
     unlet l:parent_key[l:ref_name]
 endf
 
 func! CsMgmtDelete(line, pos)
+
     if s:cm_is_it_a_unexpect_line(a:line) == 1
         if s:cm_is_it_a_group_title(a:line) == 1
             " delete a group
             call s:cm_del_db_by_group(a:line, a:pos)
-        else
-            call s:cm_del_db(a:line, a:pos)
+            call s:cm_json2file()
+            call s:cm_buf_refresh(line("."))
         endif
+    else
+        call s:cm_del_db(a:line, a:pos)
         call s:cm_json2file()
         call s:cm_buf_refresh(line("."))
     endif
