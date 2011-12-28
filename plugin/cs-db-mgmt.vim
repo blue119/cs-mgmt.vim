@@ -65,12 +65,14 @@ endif
 func! s:cm_get_src_from_file(path)
     if !filereadable(a:path)
         call s:echo_waring( a:path . ' is not readable.' )
-        return
+        return -1
     endif
 
     let l:decomp_cmd = ''
     let l:tmpfolder = ''
     " to check compressed type
+    " TODO: tmpfolder should using makename
+    " TODO: filename can add a random number on postfix
     if a:path[-len(".tar.gz"):] == ".tar.gz"
         let l:filename = split(a:path, '\/')[-1][:-len(".tar.gz")-1]
         let l:tmpfolder = g:CsMgmtSrcDepot . l:filename . '.tmp'
@@ -81,17 +83,17 @@ func! s:cm_get_src_from_file(path)
         let l:decomp_cmd = 'tar jxvf ' . a:path . ' -C ' . l:tmpfolder
     else
         echo 'the type of file do not support.'
-        return
+        return -1
     endif
 
     if isdirectory(l:tmpfolder)
         echo l:tmpfolder . ' folder conflict!! you have to remove it before.'
-        return
+        return -1
     else
         " 1. create a tmp folder on g:CsMgmtSrcDepot that name is its file name.
         if mkdir(l:tmpfolder) != 1
             call s:echo_waring( 'Can not create the tmpfolder ' . l:tmpfolder )
-            return
+            return -1
         endif
     endif
 
@@ -120,7 +122,7 @@ func! s:cm_get_src_from_file(path)
             call system('rm -rf ' . l:tmpfolder)
             call s:echo_waring( l:finalfolder 
                     \ . ' folder conflict!! you have to remove it before.' )
-            return
+            return -1
         else
             call system( 
                 \ printf('mv %s/%s %s', l:tmpfolder, l:first_folder, l:finalfolder))
@@ -259,6 +261,9 @@ func! CsMgmtAdd(...) abort
     for t in l:prot_type
         if l:type == t
             let l:type_func = 's:cm_get_src_from_' . l:type
+            if l:type_func == -1
+                return -1
+            endif
         endif
     endfor
 
@@ -1105,6 +1110,7 @@ func! s:cm_buf_show(content)
     " for edit
     " deleting a db entry, but don't delete real file.
     nnoremap <buffer> dd :call CsMgmtDelete(printf("%s", getline('.')), line('.'))<CR>
+    " TODO: a function for cleaning all real file
 
     exec ':'.(len(s:header) + 2)
     redraw!

@@ -34,6 +34,7 @@ Plan Versoins
 TODO
 ====
 # support a shell cmd to build cscope.file from CsDbMgmtAdd cmd.
+# Debug msg colletion
 
 0.05v
 -----
