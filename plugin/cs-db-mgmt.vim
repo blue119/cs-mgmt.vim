@@ -65,12 +65,14 @@ endif
 func! s:cm_get_src_from_file(path)
     if !filereadable(a:path)
         call s:echo_waring( a:path . ' is not readable.' )
-        return
+        return -1
     endif
 
     let l:decomp_cmd = ''
     let l:tmpfolder = ''
     " to check compressed type
+    " TODO: tmpfolder should using makename
+    " TODO: filename can add a random number on postfix
     if a:path[-len(".tar.gz"):] == ".tar.gz"
         let l:filename = split(a:path, '\/')[-1][:-len(".tar.gz")-1]
         let l:tmpfolder = g:CsMgmtSrcDepot . l:filename . '.tmp'
@@ -81,17 +83,17 @@ func! s:cm_get_src_from_file(path)
         let l:decomp_cmd = 'tar jxvf ' . a:path . ' -C ' . l:tmpfolder
     else
         echo 'the type of file do not support.'
-        return
+        return -1
     endif
 
     if isdirectory(l:tmpfolder)
         echo l:tmpfolder . ' folder conflict!! you have to remove it before.'
-        return
+        return -1
     else
         " 1. create a tmp folder on g:CsMgmtSrcDepot that name is its file name.
         if mkdir(l:tmpfolder) != 1
             call s:echo_waring( 'Can not create the tmpfolder ' . l:tmpfolder )
-            return
+            return -1
         endif
     endif
 
@@ -120,7 +122,7 @@ func! s:cm_get_src_from_file(path)
             call system('rm -rf ' . l:tmpfolder)
             call s:echo_waring( l:finalfolder 
                     \ . ' folder conflict!! you have to remove it before.' )
-            return
+            return -1
         else
             call system( 
                 \ printf('mv %s/%s %s', l:tmpfolder, l:first_folder, l:finalfolder))
@@ -198,6 +200,12 @@ func! CsMgmtAdd(...) abort
         return
     endif
 
+    if !exists('g:cm_view') 
+        if s:cm_init_check() == -1
+            return
+        endif
+    endif
+
     if !isdirectory(g:CsMgmtSrcDepot)
         call mkdir(g:CsMgmtSrcDepot)
     endif
@@ -253,6 +261,9 @@ func! CsMgmtAdd(...) abort
     for t in l:prot_type
         if l:type == t
             let l:type_func = 's:cm_get_src_from_' . l:type
+            if l:type_func == -1
+                return -1
+            endif
         endif
     endfor
 
@@ -314,7 +325,10 @@ func! CsMgmtAdd(...) abort
 endf
 
 func! CsMgmt() abort
-    call s:cm_init_check()
+    if s:cm_init_check() == -1
+        return
+    endif
+
     call s:cm_buf_show(s:cm_buf_view(s:cm_get_db()))
 endf
 
@@ -485,12 +499,19 @@ endf
 func! s:cm_init_check()
     if !filereadable(g:CsMgmtDbFile)
         call s:echo_waring( "you need have a config file befor" )
-        return
+        return -1
     endif
 
     if !isdirectory(g:CsMgmtRefHome)
-        call s:echo_waring( g:CsMgmtRefHome . " must be a directory." )
-        return
+        if filereadable(g:CsMgmtRefHome)
+            call s:echo_waring( g:CsMgmtRefHome . " must be a directory." )
+            return -1
+        endif
+
+        if mkdir(g:CsMgmtRefHome) != 1
+            call s:echo_waring( 'Can not create ' . g:CsMgmtRefHome)
+            return -1
+        endif
     endif
 endf
 
@@ -707,9 +728,12 @@ func! s:cm_del_db(line, pos)
     let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
     let l:ref_name = s:get_ref_item_name(a:line)
     let l:parent_key = s:cm_get_db()
-    for p in l:parent_list
-        let l:parent_key = l:parent_key[p]
-    endfor
+
+    if len(l:parent_list)
+        for p in l:parent_list
+            let l:parent_key = l:parent_key[p]
+        endfor
+    endif
 
     " delete
     unlet l:parent_key[l:ref_name]
@@ -735,28 +759,29 @@ func! s:cm_del_db_by_group(line, pos)
     endwhile
 
     let l:parent_list = s:cm_get_parent_list_from_buf(l:level, a:line, a:pos)
-    if len(l:parent_list) == 0 
-        unlet l:parent_list
-        let l:parent_list = []
-    endif
-
     let l:parent_key = s:cm_get_db()
-    for p in l:parent_list
-        let l:parent_key = l:parent_key[p]
-    endfor
+
+    if len(l:parent_list)
+        for p in l:parent_list
+            let l:parent_key = l:parent_key[p]
+        endfor
+    endif
 
     " delete
     unlet l:parent_key[l:ref_name]
 endf
 
 func! CsMgmtDelete(line, pos)
+
     if s:cm_is_it_a_unexpect_line(a:line) == 1
         if s:cm_is_it_a_group_title(a:line) == 1
             " delete a group
             call s:cm_del_db_by_group(a:line, a:pos)
-        else
-            call s:cm_del_db(a:line, a:pos)
+            call s:cm_json2file()
+            call s:cm_buf_refresh(line("."))
         endif
+    else
+        call s:cm_del_db(a:line, a:pos)
         call s:cm_json2file()
         call s:cm_buf_refresh(line("."))
     endif
@@ -1113,6 +1138,7 @@ func! s:cm_buf_show(content)
     " for edit
     " deleting a db entry, but don't delete real file.
     nnoremap <buffer> dd :call CsMgmtDelete(printf("%s", getline('.')), line('.'))<CR>
+    " TODO: a function for cleaning all real file
 
     exec ':'.(len(s:header) + 2)
     redraw!

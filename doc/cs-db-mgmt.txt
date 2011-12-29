@@ -1,0 +1,75 @@
+*cs-mgmt.txt*  Provide a efficient way to manage the symbol cross-reference  v0.01
+
+		manage your cscope symbol cross-reference
+USAGE:
+    when your press <leader>cs, it will show a buffer to show your database
+    menu. now then you can attach and detach by press a and d.
+
+------------------------------------------------------------------------------
+                                                               *cs-mgmt-settings*
+These are three option define.
+
+CsMgmtRefHome
+    your cscope's database will be putted into this folder.
+>
+        let g:CsMgmtRefHome = $HOME.'/.cs-mgmt/'
+<
+CsMgmtDbFile
+    It is a txt file of json format. that defined your db structure.
+>
+        let g:CsMgmtDbFile = $HOME.'/.cs-mgmt.json
+<
+CsMgmtSrcDepot
+    Where will put your source code that build from CsMgmtAdd comamnd.
+>
+        let g:CsMgmtSrcDepot = g:CsMgmtRefHome.'.source_depot/'
+<
+------------------------------------------------------------------------------
+                                                                  *cs-mgmt-json*
+This following json file is a simple configuration. It is only define a items
+for c standard library. If you'd like to own a configuration for yourself. I
+think following the configuration is a good start.
+>
+    {
+        'usr_include' : [
+            '/usr/include/', 
+            ],
+    }
+<
+------------------------------------------------------------------------------
+                                                            *cs-mgmt-keymaping*
+When you cursor focused on buffer of CsMgmt, folowing key can be used to
+manage your reference configuration. >
+    Single:
+	Press a to attach 
+	Press d to detach
+	Press b to build db
+	Press r to rebuild db
+
+    Group:
+	Press A to attach by group
+	Press D to detach by group
+	Press B to build db by group
+	Press R to rebuild db by group
+
+    Access:
+	Press dd to delete a single reference or whole group.
+<
+
+------------------------------------------------------------------------------
+Command for cs-mgmt           		  			*cs-mgmt-add*
+    CsMgmt, It is used as toggle command for open and close cs-mgmt menu.
+    CsMgmtAdd, It is used to add a config to json file.
+
+    currently, it only support two types of compress file: .tar.gz and .tar.bz2
+
+    USAGE:
+        :CsMgmtAdd {file|dir|url|apt} {src path} [ref name] [group]
+	Currently, it only support file and dir options.
+
+        CsMgmtAdd dir {} >
+	    :CsMgmtAdd dir ~/my_project/foo bar_name grouping/foo/bar
+	    :CsMgmtAdd dir ./my_project/ our_project
+<
+
+vim:tw=78:noet:wrap:ts=8:ft=help:norl:
