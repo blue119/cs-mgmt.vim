@@ -860,6 +860,7 @@ func! CsMgmtBuild(line, pos)
         return
     endif
 
+    " file create
     call writefile(l:all_file_list, g:CsMgmtRefHome.l:ref_full_name.'.files')
 
     let l:path_list = s:cm_get_path_list_from_config(l:parent_list, l:ref_name)
@@ -873,7 +874,7 @@ func! CsMgmtBuild(line, pos)
     endfor
 
     if len(l:all_file_list) == 0
-        let l:msg =  'It is not finish to build cscope database,'
+        let l:msg =  'It is not finish to build cscope reference,'
             \ .  ' because no fidning any c or cpp file in ' . l:path_list
         call s:echo_waring(l:msg)
         return
@@ -916,6 +917,29 @@ func! CsMgmtRebuild(line, pos)
         call s:echo_waring(l:msg)
         return
     endif
+
+    " file create
+    call writefile(l:all_file_list, g:CsMgmtRefHome.l:ref_full_name.'.files')
+
+    let l:path_list = s:cm_get_path_list_from_config(l:parent_list, l:ref_name)
+
+    " if type(l:path_list) == 1
+        " let l:path_list = [l:path_list]
+    " endif
+
+    for p in (type(l:path_list) == 1 ? [l:path_list] : l:path_list)
+        call s:cm_path_walk(p, l:all_file_list)
+    endfor
+
+    if len(l:all_file_list) == 0
+        let l:msg =  'It is not finish to build cscope reference,'
+            \ .  ' because no fidning any c or cpp file in ' . l:path_list
+        call s:echo_waring(l:msg)
+        return
+    endif
+
+    "write to file
+    call writefile(l:all_file_list, g:CsMgmtRefHome.l:ref_full_name.'.files')
 
     " real build
     call s:cm_db_build(l:ref_full_name)
