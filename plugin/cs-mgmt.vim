@@ -771,6 +771,43 @@ func! s:cm_del_db_by_group(line, pos)
     unlet l:parent_key[l:ref_name]
 endf
 
+func! CsMgmtOpenAllFile(line, pos)
+
+    if s:cm_is_it_a_unexpect_line(a:line) == 1
+        " echo 'it is a unexpect line'
+        return
+    endif
+
+    if s:cm_str_strip(a:line)[0] == s:ref_nonexist_token
+        call s:echo_waring("You have not built its cross-reference.") 
+        return
+    endif
+
+    " look for key of its full name.
+    let l:ref_level = s:cm_which_level_is_it(a:line)
+    let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
+    let l:ref_name = s:get_ref_item_name(a:line)
+    let l:all_file_list = []
+    let l:parent = (len(l:parent_list) == 0) ? 
+                \   (''):
+                \   (join(l:parent_list, '_'))
+
+    let l:ref_full_name = (l:parent == '') ? 
+                \   (l:ref_name):
+                \   (l:parent.'_'.l:ref_name)
+
+    let l:abs_path = g:CsMgmtRefHome . l:ref_full_name . ".files"
+    let l:file_list = readfile(l:abs_path)
+    
+    " move to main buffer
+    wincmd l
+
+    " open all file into buffer
+    for f in l:file_list
+        exec "edit " . f
+    endfor
+endf
+
 func! CsMgmtDelete(line, pos)
 
     if s:cm_is_it_a_unexpect_line(a:line) == 1
@@ -781,9 +818,6 @@ func! CsMgmtDelete(line, pos)
             call s:cm_buf_refresh(line("."))
         endif
     else
-        call s:cm_del_db(a:line, a:pos)
-        call s:cm_json2file()
-        call s:cm_buf_refresh(line("."))
     endif
 endf
 
@@ -1124,21 +1158,24 @@ func! s:cm_buf_show(content)
 
     call s:cm_buf_color()
 
-    nnoremap <buffer> q :silent bd!<CR>
-    nnoremap <buffer> a :call CsMgmtAttach(printf("%s", getline('.')), line('.'))<CR>
-    nnoremap <buffer> d :call CsMgmtDetach(printf("%s", getline('.')), line('.'))<CR>
-    nnoremap <buffer> b :call CsMgmtBuild(printf("%s", getline('.')), line('.'))<CR>
-    nnoremap <buffer> r :call CsMgmtRebuild(printf("%s", getline('.')), line('.'))<CR>
+    nnoremap <silent> <buffer> q :silent bd!<CR>
+    nnoremap <silent> <buffer> a :call CsMgmtAttach(printf("%s", getline('.')), line('.'))<CR>
+    nnoremap <silent> <buffer> d :call CsMgmtDetach(printf("%s", getline('.')), line('.'))<CR>
+    nnoremap <silent> <buffer> b :call CsMgmtBuild(printf("%s", getline('.')), line('.'))<CR>
+    nnoremap <silent> <buffer> r :call CsMgmtRebuild(printf("%s", getline('.')), line('.'))<CR>
 
-    nnoremap <buffer> A :call CsMgmtAttachByGroup(printf("%s", getline('.')), line('.'))<CR>
-    nnoremap <buffer> D :call CsMgmtDetachByGroup(printf("%s", getline('.')), line('.'))<CR>
-    nnoremap <buffer> B :call CsMgmtBuildByGroup(printf("%s", getline('.')), line('.'))<CR>
-    nnoremap <buffer> R :call CsMgmtRebuildByGroup(printf("%s", getline('.')), line('.'))<CR>
+    nnoremap <silent> <buffer> A :call CsMgmtAttachByGroup(printf("%s", getline('.')), line('.'))<CR>
+    nnoremap <silent> <buffer> D :call CsMgmtDetachByGroup(printf("%s", getline('.')), line('.'))<CR>
+    nnoremap <silent> <buffer> B :call CsMgmtBuildByGroup(printf("%s", getline('.')), line('.'))<CR>
+    nnoremap <silent> <buffer> R :call CsMgmtRebuildByGroup(printf("%s", getline('.')), line('.'))<CR>
 
     " for edit
     " deleting a db entry, but don't delete real file.
-    nnoremap <buffer> dd :call CsMgmtDelete(printf("%s", getline('.')), line('.'))<CR>
+    nnoremap <silent> <buffer> dd :call CsMgmtDelete(printf("%s", getline('.')), line('.'))<CR>
     " TODO: a function for cleaning all real file
+
+    " open all file at one time
+    nnoremap <silent> <buffer> oo :call CsMgmtOpenAllFile(printf("%s", getline('.')), line('.'))<CR>
 
     exec ':'.(len(s:header) + 2)
     redraw!
