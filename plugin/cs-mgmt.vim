@@ -1115,10 +1115,16 @@ func! s:cm_buf_refresh(line)
     endif
 endf
 
-let s:header = ['" Press a to attach', 
-                \ '" Press d to detach',
-                \ '" Press b to build db',
-                \ '" Press r to rebuild db']
+let s:header = ['" +-------------- Keys Map --------------+', 
+              \ '" | *uppercase letter active by group    |',
+              \ '" | Press a or A: to aetach              |',
+              \ '" | Press d or B: to detach              |',
+              \ '" | Press b or D: to build db            |',
+              \ '" | Press r or R: to rebuild db          |',
+              \ '" |--------------------------------------|',
+              \ '" | Press dd: delete a entry from menu   |',
+              \ '" | Press oo: open all file at one time  |',
+              \ '" +--------------------------------------+']
 
 func! s:cm_buf_show(content)
     if exists('g:cm_view') && bufloaded(g:cm_view)
@@ -1151,7 +1157,7 @@ func! s:cm_buf_show(content)
     setl cursorline
     setl nonu ro noma ignorecase
 
-    exec 'vertical resize 40'
+    exec 'vertical resize 44'
 
     setl ft=vim
     " setl syntax=vim
