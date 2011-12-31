@@ -802,10 +802,15 @@ func! CsMgmtOpenAllFile(line, pos)
     " move to main buffer
     wincmd l
 
+    " let l:time_s = localtime()
+
     " open all file into buffer
     for f in l:file_list
         exec "edit " . f
     endfor
+
+    " let l:elapsed = localtime() - l:time_s
+    " echo "Spend " . l:elapsed
 endf
 
 func! CsMgmtDelete(line, pos)
@@ -1190,7 +1195,7 @@ endf
 let s:CsMgmtDb = s:cm_get_db_from_file()
 let s:json2file_list = []
 
-command! -nargs=* CsMgmtAdd call CsMgmtAdd(<f-args>)
+command! -nargs=* -complete=dir CsMgmtAdd call CsMgmtAdd(<f-args>)
 command! CsMgmt call CsMgmt()
 map <Leader>cs :call CsMgmt()<CR>
 
