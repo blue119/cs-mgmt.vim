@@ -275,11 +275,17 @@ func! CsMgmtAdd(...) abort
     " symbol replacement
     if l:path[0] == '~'
         let l:path = $HOME . l:path[1:]
-    elseif l:path[0] == '.'
+    elseif l:path[0:2] == '../'
+        let l:path = $PWD . '/' . l:path
+    elseif l:path[0:1] == './'
         let l:path = $PWD . l:path[1:]
     elseif l:path[0:3] == '$PWD'
         let l:path = $PWD . l:path[4:]
     endif
+
+    let l:path = simplify(l:path)
+    echo l:path
+    return
 
     let l:source_path = eval(l:type_func . '("' . l:path . '")')
 
@@ -814,7 +820,6 @@ func! CsMgmtOpenAllFile(line, pos)
 endf
 
 func! CsMgmtDelete(line, pos)
-
     if s:cm_is_it_a_unexpect_line(a:line) == 1
         if s:cm_is_it_a_group_title(a:line) == 1
             " delete a group
@@ -823,6 +828,9 @@ func! CsMgmtDelete(line, pos)
             call s:cm_buf_refresh(line("."))
         endif
     else
+        call s:cm_del_db(a:line, a:pos)
+        call s:cm_json2file()
+        call s:cm_buf_refresh(line("."))
     endif
 endf
 
