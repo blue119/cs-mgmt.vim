@@ -190,13 +190,13 @@ func! CsMgmtAdd(...) abort
     " a:000[2]: ref_name <- it is not necessary.
     " a:000[3]: group <- it is not necessary.
     if len(a:000) > 4 || len(a:000) < 2
-        echo ":CsMgmtAdd {prot type} {src path} [{ref_name}]"
-        echo "    example: :CsMgmtAdd dir /tmp/foo"
-        echo "    example: :CsMgmtAdd dir /tmp/foo bar"
+        echo ":Csmgmtadd {dir|file} {src path} [{ref_name}]"
+        echo "    example: :Csmgmtadd dir /tmp/foo"
+        echo "    example: :Csmgmtadd dir /tmp/foo bar"
         echo " "
-        echo ":CsMgmtAdd {prot type} {src path} {ref_name} [group]"
-        echo "    example: :CsMgmtAdd dir /tmp/foo bar fooBar"
-        echo "    example: :CsMgmtAdd dir /tmp/foo bar fooBar/Foobar"
+        echo ":Csmgmtadd {dir|file} {src path} {ref_name} [group]"
+        echo "    example: :Csmgmtadd dir /tmp/foo bar fooBar"
+        echo "    example: :Csmgmtadd dir /tmp/foo bar fooBar/Foobar"
         return
     endif
 
@@ -210,8 +210,8 @@ func! CsMgmtAdd(...) abort
         call mkdir(g:CsMgmtSrcDepot)
     endif
 
-    " TODO: ['url', 'apt']
-    " let l:prot_type = ['file', 'dir', 'url', 'apt']
+    " TODO: json - add lot of entry at one time.
+    " let l:prot_type = ['file', 'dir', ]
     let l:prot_type = ['file', 'dir']
     let l:argc = len(a:000)
     let l:type = a:000[0]
@@ -284,8 +284,6 @@ func! CsMgmtAdd(...) abort
     endif
 
     let l:path = simplify(l:path)
-    echo l:path
-    return
 
     let l:source_path = eval(l:type_func . '("' . l:path . '")')
 
@@ -806,7 +804,7 @@ func! CsMgmtOpenAllFile(line, pos)
     let l:file_list = readfile(l:abs_path)
     
     " move to main buffer
-    wincmd l
+    " wincmd l
 
     " let l:time_s = localtime()
 
@@ -1107,7 +1105,7 @@ func! s:cm_buf_refresh(line)
 
             " delete all line in buffer
             let l:header_size = len(s:header) + 2
-            exec l:header_size. ",$d"
+            exec "silent" . l:header_size. ",$d"
 
             " update buffer
             for i in s:cm_buf_view(s:cm_get_db())
@@ -1128,8 +1126,8 @@ func! s:cm_buf_refresh(line)
     endif
 endf
 
-let s:header = ['" +-------------- Keys Map --------------+', 
-              \ '" | *uppercase letter active by group    |',
+let s:header = ['" +-------------- Key Map ---------------+', 
+              \ '" | *Uppercase letter for group action.  |',
               \ '" | Press a or A: to aetach              |',
               \ '" | Press d or B: to detach              |',
               \ '" | Press b or D: to build db            |',
@@ -1203,7 +1201,7 @@ endf
 let s:CsMgmtDb = s:cm_get_db_from_file()
 let s:json2file_list = []
 
-command! -nargs=* -complete=dir CsMgmtAdd call CsMgmtAdd(<f-args>)
+command! -nargs=* -complete=dir Csmgmtadd call CsMgmtAdd(<f-args>)
 command! CsMgmt call CsMgmt()
 map <Leader>cs :call CsMgmt()<CR>
 
