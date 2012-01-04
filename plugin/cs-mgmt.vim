@@ -398,11 +398,11 @@ let s:ref_grp_re = '\(^\s\{}\)'
 
 let s:ref_nonexist_re = '^\(\s\{}\)'
                 \ .'\([OX]\)\s'
-                \ .'\([0-9a-zA-Z\-._~]\{}\)\s\{}'
+                \ .'\([0-9a-zA-Z\-._~+]\{}\)\s\{}'
 
 let s:ref_exist_re = '^\(\s\{}\)'
                 \ .'\([OX]\)\s'
-                \ .'\([0-9a-zA-Z\-._~]\{}\)\s\{}'
+                \ .'\([0-9a-zA-Z\-._~+]\{}\)\s\{}'
                 \ .'\(\d\{4}\.\d\{2}\.\d\{2}\s\d\{2}\:\d\{2}\)'
                 \ .'\(Attach\)\{}'
 
@@ -804,7 +804,7 @@ func! CsMgmtOpenAllFile(line, pos)
     let l:file_list = readfile(l:abs_path)
     
     " move to main buffer
-    " wincmd l
+    wincmd l
 
     " let l:time_s = localtime()
 
@@ -815,6 +815,10 @@ func! CsMgmtOpenAllFile(line, pos)
 
     " let l:elapsed = localtime() - l:time_s
     " echo "Spend " . l:elapsed
+    "
+    " back to menu buffer
+    wincmd h
+
 endf
 
 func! CsMgmtDelete(line, pos)
@@ -1088,10 +1092,10 @@ func! s:cm_buf_color()
     call matchadd('cm_ref_attach', '\ Attach$')
 
     hi cm_ref_item_status_exist ctermfg=blue guifg=blue
-    call matchadd('cm_ref_item_status_exist', '^\s\{}O', 99)
+    call matchadd('cm_ref_item_status_exist', '^\s\{}' . s:ref_exist_token, 99)
 
     hi cm_ref_item_status_nonexist ctermfg=red guifg=red
-    call matchadd('cm_ref_item_status_nonexist', '^\s\{}X', 99)
+    call matchadd('cm_ref_item_status_nonexist', '^\s\{}' . s:ref_nonexist_token, 99)
 endf
 
 func! s:cm_buf_refresh(line)
