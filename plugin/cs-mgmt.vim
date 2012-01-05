@@ -1079,8 +1079,8 @@ func! s:cm_json2file()
 endf
 
 func! s:cm_buf_color()
-    hi cm_ref_prj_name ctermfg=cyan guifg=cyan
-    call matchadd('cm_ref_prj_name', '^\s\{}\w\+:')
+    hi cm_ref_grp_name ctermfg=cyan guifg=cyan
+    call matchadd('cm_ref_grp_name', '^\s\{}\([0-9a-zA-Z\-._~]*\):')
 
     hi cm_ref_name ctermfg=yellow guifg=yellow
     call matchadd('cm_ref_name', '^\s\{}[OX]\s\(.*\)$')
