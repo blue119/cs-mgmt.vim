@@ -945,13 +945,27 @@ func! CsMgmtBuild(line, pos)
         " let l:path_list = [l:path_list]
     " endif
 
+    let l:include_path_list = []
+    let l:knock_out_path_list = []
     for p in (type(l:path_list) == 1 ? [l:path_list] : l:path_list)
+        if p[0] == '-'
+            call add(l:knock_out_path_list, p[1:])
+        else
+            call add(l:include_path_list, p)
+        endif
+    endfor
+
+    for p in l:include_path_list
         call s:cm_path_walk(p, l:all_file_list)
+    endfor
+
+    for p in l:knock_out_path_list
+        call filter(l:all_file_list, 'v:val !~ "'. p .'"')
     endfor
 
     if len(l:all_file_list) == 0
         let l:msg =  'It is not finish to build cscope reference,'
-            \ .  ' because no fidning any c or cpp file in ' . l:path_list
+            \ .  ' because no fidning any c or cpp file in ' . l:include_path_list
         call s:echo_waring(l:msg)
         return
     endif
