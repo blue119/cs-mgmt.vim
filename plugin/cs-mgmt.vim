@@ -54,7 +54,7 @@ endif
 " where are your config file
 " by default, it will be put on $HOME/.cs-mgmt.json
 if !exists('g:CsMgmtDbFile')
-    let g:CsMgmtDbFile = $HOME.'/.cs-mgmt.json'
+    let g:CsMgmtDbFile = g:CsMgmtRefHome.'/.cs-mgmt.json'
 endif
 
 " with CsMgmtAdd, that all source will be put into the folder.
