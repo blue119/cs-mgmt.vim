@@ -1146,7 +1146,8 @@ func! s:cm_buf_show(content)
         exec g:cm_view.'bd!'
     endif
 
-    exec 'silent pedit '.tempname()
+    let l:pwd = getcwd()
+    exec 'silent pedit ' . tempname()
 
     wincmd P | wincmd H
 
@@ -1200,6 +1201,9 @@ func! s:cm_buf_show(content)
 
     exec ':'.(len(s:header) + 2)
     redraw!
+
+    " Its woring directory will be changed to tmpename directory, rolling back
+    exec 'cd ' . l:pwd
 endf
 
 let s:CsMgmtDb = s:cm_get_db_from_file()
