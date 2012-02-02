@@ -741,6 +741,10 @@ func! s:cm_del_db(line, pos)
         endfor
     endif
 
+    for l:sufix in ['.files', '.out', '.out.in', '.out.po']
+        call delete(g:CsMgmtRefHome . l:ref_name . l:sufix)
+    endfor
+
     " delete
     unlet l:parent_key[l:ref_name]
 endf
