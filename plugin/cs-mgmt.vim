@@ -281,6 +281,8 @@ func! CsMgmtAdd(...) abort
         let l:path = $PWD . l:path[1:]
     elseif l:path[0:3] == '$PWD'
         let l:path = $PWD . l:path[4:]
+    else
+        let l:path = $PWD . '/' . l:path
     endif
 
     let l:path = simplify(l:path)
