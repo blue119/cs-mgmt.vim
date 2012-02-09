@@ -1021,8 +1021,23 @@ func! CsMgmtRebuild(line, pos)
         " let l:path_list = [l:path_list]
     " endif
 
+    let l:include_path_list = []
+    let l:knock_out_path_list = []
     for p in (type(l:path_list) == 1 ? [l:path_list] : l:path_list)
+        if p[0] == '-'
+            call add(l:knock_out_path_list, p[1:])
+        else
+            call add(l:include_path_list, p)
+        endif
+    endfor
+
+    for p in l:include_path_list
         call s:cm_path_walk(p, l:all_file_list)
+    endfor
+
+    for p in l:knock_out_path_list
+        echo p
+        call filter(l:all_file_list, 'v:val !~ "'. p .'"')
     endfor
 
     if len(l:all_file_list) == 0
