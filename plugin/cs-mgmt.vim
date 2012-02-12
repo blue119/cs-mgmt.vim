@@ -949,6 +949,10 @@ func! CsMgmtBuild(line, pos)
         " let l:path_list = [l:path_list]
     " endif
 
+    echohl TabLineFill
+        \ | echo l:ref_name.' collecting.... '
+        \ | echohl None
+
     let l:include_path_list = []
     let l:knock_out_path_list = []
     for p in (type(l:path_list) == 1 ? [l:path_list] : l:path_list)
@@ -1021,6 +1025,10 @@ func! CsMgmtRebuild(line, pos)
         " let l:path_list = [l:path_list]
     " endif
 
+    echohl TabLineFill
+        \ | echo l:ref_name.' collecting.... '
+        \ | echohl None
+
     let l:include_path_list = []
     let l:knock_out_path_list = []
     for p in (type(l:path_list) == 1 ? [l:path_list] : l:path_list)
@@ -1036,7 +1044,6 @@ func! CsMgmtRebuild(line, pos)
     endfor
 
     for p in l:knock_out_path_list
-        echo p
         call filter(l:all_file_list, 'v:val !~ "'. p .'"')
     endfor
 
