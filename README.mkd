@@ -31,17 +31,10 @@ Plan Versoins
 # buffer window can be edit
 # can add a db placed in project using CsDbMgmtAdd
 
-TODO
-====
-# support a shell cmd to build cscope.file from CsDbMgmtAdd cmd.
-# Debug msg colletion
-
-0.05v
------
-
-wish
+wish list
 ----
 # a hotkey to show db info
 # the db file will be auto-update when file be update.
-
+# support a shell cmd to build cscope.file from CsDbMgmtAdd cmd.
+# Debug msg colletion
 

@@ -1,14 +1,18 @@
 " cs-mgmt.vim:   Vim plugin providing cscope's database management
 " Author:           Yao-Po Wang
 " HomePage:         https://bitbucket.org/blue119/cs-mgmt.vim
-" Version:          0.01
+" Version:          0.4.1
 " Note:
-"       the db name -> {parent prj_name}_\*_{db_name}.out
+"       the name of reference file : {parent name}*_{reference_name}.out
+"       all cscope's cross-reference file is place in g:CsMgmtRefHome that 
+"       default setting is $HOME/.cs-mgmt/
+"       
 "       simple item -> \ {O|X}\ {db_name}\ {timestamp}\ [Attach]
-"       it is a prj -> \ {prj_name}
+"       a projet -> \ {prj_name}
 "                      \ \ \ \ \ {O|X}\ {db_name}\ {timestamp}\ [Attach]
 "
-"      :CsMgmtAdd ('file' | 'url' | 'apt') {file path}
+" Usage:
+"      :Csmgmtadd {'file' | 'url'} {file path} [{reference name}] [{parent path}]
 "      it is going to take source code from file, web url, or dpkg, and put it
 "      to your g:CsMgmtRefHome/.source. it will add this source item to json file
 "      as well.

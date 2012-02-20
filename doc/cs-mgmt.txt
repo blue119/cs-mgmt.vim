@@ -7,7 +7,7 @@ USAGE:
 
 ------------------------------------------------------------------------------
                                                                *cs-mgmt-settings*
-These are three option define.
+These are some option define.
 
 CsMgmtRefHome
     your cscope's database will be putted into this folder.
@@ -23,6 +23,11 @@ CsMgmtSrcDepot
     Where will put your source code that build from CsMgmtAdd comamnd.
 >
         let g:CsMgmtSrcDepot = g:CsMgmtRefHome.'.source_depot/'
+<
+CsMgmtReAttach
+    Re-attach your reference file after rebuilding.
+>
+        let g:CsMgmtReAttach = 1
 <
 ------------------------------------------------------------------------------
                                                                   *cs-mgmt-json*
@@ -54,12 +59,13 @@ manage your reference configuration. >
 
     Access:
 	Press dd to delete a single reference or whole group.
+	Press oo to open all file on vim buffer at one time.
 <
 
 ------------------------------------------------------------------------------
 Command for cs-mgmt           		  			*cs-mgmt-add*
-    CsMgmt, It is used as toggle command for open and close cs-mgmt menu.
-    CsMgmtAdd, It is used to add a config to json file.
+    :CsMgmt, It is used as toggle command for open and close cs-mgmt menu.
+    :Csmgmtadd, It is used to add a config to json file.
 
     currently, it only support two types of compress file: .tar.gz and .tar.bz2
 
@@ -68,8 +74,8 @@ Command for cs-mgmt           		  			*cs-mgmt-add*
 	Currently, it only support file and dir options.
 
         CsMgmtAdd dir {} >
-	    :CsMgmtAdd dir ~/my_project/foo bar_name grouping/foo/bar
-	    :CsMgmtAdd dir ./my_project/ our_project
+	    :Csmgmtadd dir ~/my_project/foo bar_name grouping/foo/bar
+	    :Csmgmtadd dir ./my_project/ our_project
 <
 
 vim:tw=78:noet:wrap:ts=8:ft=help:norl:
