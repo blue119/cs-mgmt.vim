@@ -47,8 +47,6 @@ endf
 " where are your database
 if !exists('g:CsMgmtRefHome')
     let g:CsMgmtRefHome = $HOME.'/.cs-mgmt/'
-" else
-    " let g:CsMgmtRefHome = finddir(g:CsMgmtRefHome)
 endif
 
 " where are your config file
@@ -60,6 +58,11 @@ endif
 " with CsMgmtAdd, that all source will be put into the folder.
 if !exists('g:CsMgmtSrcDepot')
     let g:CsMgmtSrcDepot = g:CsMgmtRefHome . '.source_depot/'
+endif
+
+" re-attach the refernece file after rebuild
+if !exists('g:CsMgmtReAttach')
+    let g:CsMgmtReAttach = 1
 endif
 
 func! s:cm_get_src_from_file(path)
@@ -1065,6 +1068,11 @@ func! CsMgmtRebuild(line, pos)
     call setline(a:pos,
         \ s:cm_show_item_construct(l:ref_level, l:parent, l:ref_name))
     call s:cm_get_readonly_mode()
+
+    if g:CsMgmtReAttach == 1 && index(s:ref_attach_list, l:ref_full_name) != -1
+        call CsMgmtDetach(a:line, a:pos)
+        call CsMgmtAttach(a:line[0:-len(" Attach")-1], a:pos)
+    endif
 endf
 
 func! s:cm_json_dip(indent_level, value)
