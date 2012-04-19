@@ -518,12 +518,7 @@ func! s:cm_show_item_construct(indent_level, parent, ref_name)
     endif
 endf
 
-func! s:cm_init_check()
-    if !filereadable(g:CsMgmtDbFile)
-        call s:echo_waring( "you need have a config file befor" )
-        return -1
-    endif
-
+func! s:cm_chk_new_RefHome()
     if !isdirectory(g:CsMgmtRefHome)
         if filereadable(g:CsMgmtRefHome)
             call s:echo_waring( g:CsMgmtRefHome . " must be a directory." )
@@ -537,8 +532,23 @@ func! s:cm_init_check()
     endif
 endf
 
+func! s:cm_init_check()
+    if !filereadable(g:CsMgmtDbFile)
+        call s:echo_waring( "you need have a config file befor" )
+        return -1
+    endif
+
+    if s:cm_chk_new_RefHome() == -1
+        return -1
+    endif
+endf
+
 func! s:cm_get_db_from_file()
     if !filereadable(g:CsMgmtDbFile)
+		if s:cm_chk_new_RefHome() == -1
+			return -1
+		endif
+
         " default config
         call writefile(["{'usr_include' : ['/usr/include/', ],}"], g:CsMgmtDbFile )
     endif
