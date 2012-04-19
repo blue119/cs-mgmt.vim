@@ -27,6 +27,15 @@
 if exists('g:loaded_cs_mgmt') || &cp
   finish
 endif
+
+if !exists('chk_cscope_cmd')
+    if executable('cscope')
+        let cscope_cmd = 'cscope'
+    else
+        echomsg 'cs-mgmt: cscope command not found in PATH.'
+        finish
+    endif
+endif
 let g:loaded_cs_mgmt = 1
 
 " debug mode on/off
