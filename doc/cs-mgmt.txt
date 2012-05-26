@@ -64,16 +64,17 @@ manage your reference configuration. >
 
 ------------------------------------------------------------------------------
 Command for cs-mgmt           		  			*cs-mgmt-add*
-    :CsMgmt, It is used as toggle command for open and close cs-mgmt menu.
+    :CsMgmt and <leader>cs, used as toggle command for open and close cs-mgmt 
+    menu that also can use 'q'.
     :Csmgmtadd, It is used to add a config to json file.
 
     currently, it only support two types of compress file: .tar.gz and .tar.bz2
 
     USAGE:
-        :CsMgmtAdd {file|dir|url|apt} {src path} [ref name] [group]
+        :Csmgmtadd {file|dir|url|apt} {src path} [ref name] [group]
 	Currently, it only support file and dir options.
 
-        CsMgmtAdd dir {} >
+        Csmgmtadd dir {} >
 	    :Csmgmtadd dir ~/my_project/foo bar_name grouping/foo/bar
 	    :Csmgmtadd dir ./my_project/ our_project
 <
