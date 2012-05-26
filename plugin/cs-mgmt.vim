@@ -78,6 +78,38 @@ if !exists('g:CsMgmtReAttach')
     let g:CsMgmtReAttach = 1
 endif
 
+" It will also create a tags file of ctags after creating referencing file of 
+" cscope
+if exists('g:CsMgmtCtags') && g:CsMgmtCtags == 1
+	if executable('ctags')
+		let ctags_cmd = 'ctags'
+	else
+		echomsg 'cs-mgmt: ctags command not found in PATH.'
+		echomsg 'cs-mgmt: disable g:CsmgmtCtags variable.'
+		let g:CsMgmtCtags = 0
+	endif
+else
+	let g:CsMgmtCtags = 0
+endif
+
+func! s:cm_add_tag_to_tags(tag)
+	exec printf("set tags=%s;%s", &tags, a:tag)
+endf
+
+func! s:cm_del_tag_from_tags(tag)
+	let l:new_tags = ""
+	for t in split(&tags, ";")
+		if t != a:tag
+			if l:new_tags == ""
+				let l:new_tags = t
+			else
+				let l:new_tags = l:new_tags . ';' . t
+			endif
+		endif
+	endfor
+	exec printf("set tags=%s", l:new_tags)
+endf
+
 func! s:cm_get_src_from_file(path)
     if !filereadable(a:path)
         call s:echo_waring( a:path . ' is not readable.' )
@@ -744,6 +776,11 @@ func! CsMgmtAttach(line, pos)
     call s:cm_get_readonly_mode()
  
     exec "cs add ".g:CsMgmtRefHome.l:ref_full_name.'.out'
+	
+	" for ctags
+	if g:CsMgmtCtags == 1
+		call s:cm_add_tag_to_tags(g:CsMgmtRefHome . l:ref_full_name . '.tags')
+	endif
 endf
 
 func! s:cm_del_db(line, pos)
@@ -767,8 +804,14 @@ func! s:cm_del_db(line, pos)
         endfor
     endif
 
-    for l:sufix in ['.files', '.out', '.out.in', '.out.po']
-        call delete(g:CsMgmtRefHome . l:ref_name . l:sufix)
+	let l:suffixs = ['.files', '.out', '.out.in', '.out.po']
+
+	if g:CsMgmtCtags == 1
+		call add(l:suffixs, '.tags')
+	endif
+
+    for suffix in l:suffixs
+        call delete(g:CsMgmtRefHome . l:ref_name . suffix)
     endfor
 
     " delete
@@ -896,6 +939,11 @@ func! CsMgmtDetach(line, pos)
     call s:cm_get_readonly_mode()
  
     exec "cs kill ".g:CsMgmtRefHome.l:ref_full_name.'.out'
+
+	" for ctags
+	if g:CsMgmtCtags == 1
+		call s:cm_del_tag_from_tags(g:CsMgmtRefHome . l:ref_full_name . '.tags')
+	endif
 endf
 
 func! s:cm_path_walk(path, all_file_list)
@@ -916,12 +964,25 @@ func! s:cm_path_walk(path, all_file_list)
     endfor
 endf
 
-func! s:cm_db_build(ref_name)
+func! s:cm_db_cs_build(ref_name)
     let l:cmd_string = printf('cd %s && cscope -b -q -k -i%s.files -f%s.out', 
             \ g:CsMgmtRefHome, a:ref_name, a:ref_name)
 
     echohl TabLine
-        \ | echo a:ref_name.' building.... '
+        \ | echo a:ref_name.' building for cscope .... '
+        \ | echohl None
+    call system(l:cmd_string)
+    echohl Title
+        \ | echo a:ref_name.' built success.'
+        \ | echohl None
+endf
+
+func! s:cm_db_ctags_build(ref_name)
+    let l:cmd_string = printf('cd %s && ctags -L %s.files -f %s.tags', 
+            \ g:CsMgmtRefHome, a:ref_name, a:ref_name)
+
+    echohl TabLine
+        \ | echo a:ref_name.' building for ctags .... '
         \ | echohl None
     call system(l:cmd_string)
     echohl Title
@@ -1004,11 +1065,16 @@ func! CsMgmtBuild(line, pos)
         return
     endif
 
-    "write to file
+    " write to file
     call writefile(l:all_file_list, g:CsMgmtRefHome.l:ref_full_name.'.files')
 
-    " real build
-    call s:cm_db_build(l:ref_full_name)
+    " real build for cscope
+    call s:cm_db_cs_build(l:ref_full_name)
+
+    " real build for ctags
+	if g:CsMgmtCtags == 1
+		call s:cm_db_ctags_build(l:ref_full_name)
+	endif
 
     " add a Attach word on the end of line
     call s:cm_get_write_mode()
@@ -1080,11 +1146,16 @@ func! CsMgmtRebuild(line, pos)
         return
     endif
 
-    "write to file
+    " write to file
     call writefile(l:all_file_list, g:CsMgmtRefHome.l:ref_full_name.'.files')
 
-    " real build
-    call s:cm_db_build(l:ref_full_name)
+    " real build for cscope
+    call s:cm_db_cs_build(l:ref_full_name)
+
+    " real build for ctags
+	if g:CsMgmtCtags == 1
+		call s:cm_db_ctags_build(l:ref_full_name)
+	endif
 
     " add a Attach word on the end of line
     call s:cm_get_write_mode()

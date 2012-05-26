@@ -29,6 +29,13 @@ CsMgmtReAttach
 >
         let g:CsMgmtReAttach = 1
 <
+
+CsMgmtCtags
+    Suuprot tags referencing file. It will also create a tags file of ctags after 
+    creating referencing file of cscope
+>
+        let g:CsMgmtCtags = 1
+<
 ------------------------------------------------------------------------------
                                                                   *cs-mgmt-json*
 This following json file is a simple configuration. It is only define a items
