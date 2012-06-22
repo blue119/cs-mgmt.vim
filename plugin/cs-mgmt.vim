@@ -75,7 +75,7 @@ endif
 
 " re-attach the refernece file after rebuild
 if !exists('g:CsMgmtReAttach')
-    let g:CsMgmtReAttach = 1
+    let g:CsMgmtReAttach = 0
 endif
 
 " It will also create a tags file of ctags after creating referencing file of 
@@ -93,17 +93,21 @@ else
 endif
 
 func! s:cm_add_tag_to_tags(tag)
-	exec printf("set tags=%s;%s", &tags, a:tag)
+	if &tags == ""
+		exec printf("set tags=%s", l:new_tags)
+	else
+		exec printf("set tags=%s,%s", &tags, a:tag)
+	endif
 endf
 
 func! s:cm_del_tag_from_tags(tag)
 	let l:new_tags = ""
-	for t in split(&tags, ";")
+	for t in split(&tags, ",")
 		if t != a:tag
 			if l:new_tags == ""
 				let l:new_tags = t
 			else
-				let l:new_tags = l:new_tags . ';' . t
+				let l:new_tags = l:new_tags . ',' . t
 			endif
 		endif
 	endfor
@@ -323,14 +327,16 @@ func! CsMgmtAdd(...) abort
     " symbol replacement
     if l:path[0] == '~'
         let l:path = $HOME . l:path[1:]
-    elseif l:path[0:2] == '../'
+    elseif l:path[0:2] == '../' " ../foo/bar
         let l:path = $PWD . '/' . l:path
-    elseif l:path[0:1] == './'
+    elseif l:path[0:1] == './' " ./foo/bar
         let l:path = $PWD . l:path[1:]
-    elseif l:path[0:3] == '$PWD'
+    elseif l:path[0:3] == '$PWD' " $PWD/foo/bar
         let l:path = $PWD . l:path[4:]
+    elseif l:path[0] == '/' " /foo/bar
+        let l:path = l:path
     else
-        let l:path = $PWD . '/' . l:path
+        let l:path = $PWD . '/' . l:path " foor/bar
     endif
 
     let l:path = simplify(l:path)
