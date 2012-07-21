@@ -2,8 +2,8 @@
 
 		manage your cscope symbol cross-reference
 USAGE:
-    when your press <leader>cs, it will show a buffer to show your database
-    menu. now then you can attach and detach by press a and d.
+    when you press <leader>cs, it will show a buffer to show your database
+    menu. now then you can attach or detach by press a or d.
 
 ------------------------------------------------------------------------------
                                                                *cs-mgmt-settings*
@@ -31,7 +31,7 @@ CsMgmtReAttach
 <
 
 CsMgmtCtags
-    Suuprot tags referencing file. It will also create a tags file of ctags after 
+    Support tags referencing file. It will also create a tags file of ctags after 
     creating referencing file of cscope
 >
         let g:CsMgmtCtags = 1
@@ -78,11 +78,11 @@ Command for cs-mgmt           		  			*cs-mgmt-add*
     currently, it only support two types of compress file: .tar.gz and .tar.bz2
 
     USAGE:
-        :Csmgmtadd {file|dir|url|apt} {src path} [ref name] [group]
+        :Csmgmtadd <file|dir|url|apt< <src path< [<alias> [<group>]]
 	Currently, it only support file and dir options.
 
         Csmgmtadd dir {} >
-	    :Csmgmtadd dir ~/my_project/foo bar_name grouping/foo/bar
+	    :Csmgmtadd dir ~/foo/bar foo_bar grouping/foo/bar
 	    :Csmgmtadd dir ./my_project/ our_project
 <
 

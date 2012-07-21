@@ -1,40 +1,92 @@
-Plan Versoins
-=============
+# cs-mgmt.vim
 
-0.01v
------
-# firstly, auto create a cscope's database with a shell script.
-# whole database will be put on same folder.
-# it can provide a menu list to attach and detach your cscope database.
-# the menu list refer to database folder.
+## Introduction
+Provide a efficient way to manage the symbol cross-reference. You can use the plugin to manage your referencing file. Don't need to creat cscope and ctags' referencing file by you self again when you have been own .the vim plugin.
 
-0.02v
------
-# the menu of items can be classified with like as json file.
-# it will check all status of items as show menu.
-# the csocpe's db can be groupable with project
-# to provide build and rebuild function
+### Usage
+pressing <leader>cs, it will show a buffer to show your database menu. now then you can attach or detach by press a or d.
 
-0.03v
------
-# almost to re-write the plugin
-# all data save in buffer
-# it is going to show witch db be attached
-# the dbname changed to parent_dbname
-# support multi-FileList
-# support multi deep layer json structure. 
-# it look more colorful
-# support attach or detach by group.
+### Command
 
-0.04v
------
-# buffer window can be edit
-# can add a db placed in project using CsDbMgmtAdd
+#### :CsMgmt and <leader>cs
+used as toggle command for open and close cs-mgmt menu that also can use 'q'. :Csmgmtadd, It is used to add a config to json file. 
 
-wish list
-----
-# a hotkey to show db info
-# the db file will be auto-update when file be update.
-# support a shell cmd to build cscope.file from CsDbMgmtAdd cmd.
-# Debug msg colletion
+currently, it only support two types of compress file: .tar.gz and .tar.bz2
+
+#### USAGE
+	:Csmgmtadd <file|dir|url|apt< <src path< [<alias> [<group>]]
+	:Csmgmtadd dir ~/foo/bar foo_bar grouping/foo/bar
+	:Csmgmtadd dir ./my_project/ our_project
+	
+## Options
+
+### CsMgmtRefHome
+your cscope's database will be putted into this folder.
+
+``let g:CsMgmtRefHome = $HOME.'/.cs-mgmt/``'
+
+
+### CsMgmtDbFile
+It is a txt file of json format. that defined your db structure.
+
+``let g:CsMgmtDbFile = $HOME.'/.cs-mgmt.json``
+
+
+### CsMgmtSrcDepot
+Where will put your source code that build from CsMgmtAdd comamnd.
+
+``let g:CsMgmtSrcDepot = g:CsMgmtRefHome.'.source_depot/``'
+
+
+### CsMgmtReAttach
+Re-attach your reference file after rebuilding.
+
+``let g:CsMgmtReAttach = 1``
+
+
+### CsMgmtCtags
+Support tags referencing file. It will also create a tags file of ctags after creating referencing file of cscope
+
+``let g:CsMgmtCtags = 1``
+
+
+## Json File
+This following json file is a simple configuration. It is only define a items for c standard library. If you'd like to own a configuration for yourself. I think following the configuration is a good start.
+
+	{
+	    'usr_include' : [
+	        '/usr/include/', 
+	        ],
+	}
+
+
+## Key Mapping In Menu
+When you cursor focused on buffer of CsMgmt, folowing key can be used to manage your reference configuration.
+
+### Single:
+
+* Press a to attach 
+* Press d to detach
+* Press b to build db
+* Press r to rebuild db
+
+
+### Group:
+
+* Press A to attach by group
+* Press D to detach by group
+* Press B to build db by group
+* Press R to rebuild db by group
+
+
+### Access:
+
+* Press dd to delete a single reference or whole group.
+* Press oo to open all file on vim buffer at one time.
+
+## wish list
+* a hotkey to show db info
+* the db file will be auto-update when file be update.
+* support a shell cmd to build cscope.file from CsDbMgmtAdd cmd.
+* Debug msg colletion
 

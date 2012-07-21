@@ -1,24 +1,26 @@
 " cs-mgmt.vim:   Vim plugin providing cscope's database management
 " Author:           Yao-Po Wang
 " HomePage:         https://bitbucket.org/blue119/cs-mgmt.vim
-" Version:          0.4.1
+" Version:          0.5
 " Note:
 "       the name of reference file : {parent name}*_{reference_name}.out
 "       all cscope's cross-reference file is place in g:CsMgmtRefHome that 
 "       default setting is $HOME/.cs-mgmt/
 "       
-"       simple item -> \ {O|X}\ {db_name}\ {timestamp}\ [Attach]
-"       a projet -> \ {prj_name}
-"                      \ \ \ \ \ {O|X}\ {db_name}\ {timestamp}\ [Attach]
+"       simple item -> {O|X}\ {db_name}\ {timestamp}\ [Attach]
+"       have group  -> {foo}:
+"                          {bar}:
+"                              {O|X}\ {db_name}\ {timestamp}\ [Attach]
 "
 " Usage:
-"      :Csmgmtadd {'file' | 'url'} {file path} [{reference name}] [{parent path}]
-"      it is going to take source code from file, web url, or dpkg, and put it
-"      to your g:CsMgmtRefHome/.source. it will add this source item to json file
-"      as well.
+"      :Csmgmtadd {'file' | 'url'} {file path} [{alias} [{group}]]
+"      after adding a item of reference, it will be added to json file as well.
+"      the file is indecated g:CsMgmtDbFile.
+"      if it is comeing from from file, web url, or dpkg, these files will be
+"      put into your g:CsMgmtRefHome/.source. 
 "
-"      taking from apt, it will get source from apt mirrot server and do
-"      dpkg-source. it would provide a buffer to show mult-candidate when the
+"      taking from apt, it will get source from apt mirror server and do
+"      dpkg-source. it would provide a buffer to show multi-candidate when the
 "      package term is not precision.
 "
 "      take from file procedure: Now it only support tarball file
@@ -233,22 +235,21 @@ func! s:parser_grouping_name(group)
     return [l:g_name, l:g_parent]
 endf
 
-" Examples
-" :CsMgmtAdd file /home/blue119/iLab/gspca-ps3eyeMT-0.5.tar.gz
-" :CsMgmtAdd dir /home/blue119/iLab/vte/lilyterm-0.9.8
 func! CsMgmtAdd(...) abort
     " a:000[0]: protocol
     " a:000[1]: file path
     " a:000[2]: ref_name <- it is not necessary.
     " a:000[3]: group <- it is not necessary.
     if len(a:000) > 4 || len(a:000) < 2
-        echo ":Csmgmtadd {dir|file} {src path} [{ref_name}]"
-        echo "    example: :Csmgmtadd dir /tmp/foo"
-        echo "    example: :Csmgmtadd dir /tmp/foo bar"
+        echo ":Csmgmtadd <[dir|file]> <src path> [[<alias>] <group>]"
+        echo "  example:" 
+        echo "    :Csmgmtadd dir /foo/bar"
+        echo "    :Csmgmtadd dir /foo/bar foobar"
+        echo "    :Csmgmtadd dir /foo/bar foobar foo/bar"
+        echo "    :Csmgmtadd file /foo/bar.tar.gz"
+        echo "    :Csmgmtadd file /foo/bar.tar.gz foobar"
+        echo "    :Csmgmtadd file /foo/bar.tar.gz foobar foo/bar"
         echo " "
-        echo ":Csmgmtadd {dir|file} {src path} {ref_name} [group]"
-        echo "    example: :Csmgmtadd dir /tmp/foo bar fooBar"
-        echo "    example: :Csmgmtadd dir /tmp/foo bar fooBar/Foobar"
         return
     endif
 
@@ -263,7 +264,6 @@ func! CsMgmtAdd(...) abort
     endif
 
     " TODO: json - add lot of entry at one time.
-    " let l:prot_type = ['file', 'dir', ]
     let l:prot_type = ['file', 'dir']
     let l:argc = len(a:000)
     let l:type = a:000[0]
@@ -442,12 +442,6 @@ let s:cm_indent_token = '    '
 if !exists('s:ref_attach_list')
     let s:ref_attach_list = []
 endif
-
-" let s:db_item_re = '\(^\s*\)'
-                " \ .'\(['.db_exist_token.db_nonexist_token.']\)\s'
-                " \ .'\(\w*\)\s'
-                " \ .'\(\d\{8}T\d\{6}Z\)\s\{}'
-                " \ .'\(Attach\)\{}'
 
 let s:ref_grp_re = '\(^\s\{}\)'
                 \ .'\(.*\):'
