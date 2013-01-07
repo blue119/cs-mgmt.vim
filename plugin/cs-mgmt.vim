@@ -271,6 +271,7 @@ func! CsMgmtAdd(...) abort
     let l:ref_name = ''
     let l:grp_parent = []
     let l:grp_new = []
+    let l:cwd = getcwd()
 
     if l:argc > 2
         let l:ref_name = a:000[2]
@@ -328,15 +329,15 @@ func! CsMgmtAdd(...) abort
     if l:path[0] == '~'
         let l:path = $HOME . l:path[1:]
     elseif l:path[0:2] == '../' " ../foo/bar
-        let l:path = $PWD . '/' . l:path
+        let l:path = l:cwd . '/' . l:path
     elseif l:path[0:1] == './' " ./foo/bar
-        let l:path = $PWD . l:path[1:]
+        let l:path = l:cwd . l:path[1:]
     elseif l:path[0:3] == '$PWD' " $PWD/foo/bar
-        let l:path = $PWD . l:path[4:]
+        let l:path = l:cwd . l:path[4:]
     elseif l:path[0] == '/' " /foo/bar
         let l:path = l:path
     else
-        let l:path = $PWD . '/' . l:path " foor/bar
+        let l:path = l:cwd . '/' . l:path " foor/bar
     endif
 
     let l:path = simplify(l:path)
