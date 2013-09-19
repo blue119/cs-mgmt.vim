@@ -764,6 +764,12 @@ func! CsMgmtRebuildByGroup(line, pos)
 endf
 
 func! CsMgmtAttach(line, pos)
+    if s:cm_is_it_a_group_title(a:line) == 1
+        call s:decho("Attach By Group: ".a:line)
+        call CsMgmtAttachByGroup(a:line, a:pos)
+        return
+    endif
+
     if s:cm_is_it_a_unexpect_line(a:line) == 1
         " echo 'it is a unexpect line'
         return
@@ -932,6 +938,12 @@ func! CsMgmtDelete(line, pos)
 endf
 
 func! CsMgmtDetach(line, pos)
+    if s:cm_is_it_a_group_title(a:line) == 1
+        call s:decho("Detach By Group: ".a:line)
+        call CsMgmtDetachByGroup(a:line, a:pos)
+        return
+    endif
+
     if s:cm_is_it_a_unexpect_line(a:line) == 1
         " echo 'it is a unexpect line'
         return
@@ -1023,6 +1035,12 @@ func! s:cm_get_path_list_from_config(parent_list, ref_name)
 endf
 
 func! CsMgmtBuild(line, pos)
+    if s:cm_is_it_a_group_title(a:line) == 1
+        call s:decho("Build By Group: ".a:line)
+        call CsMgmtBuildByGroup(a:line, a:pos)
+        return
+    endif
+
     if s:cm_is_it_a_unexpect_line(a:line) == 1
         " echo 'it is a unexpect line'
         return
@@ -1104,6 +1122,12 @@ func! CsMgmtBuild(line, pos)
 endf
 
 func! CsMgmtRebuild(line, pos)
+    if s:cm_is_it_a_group_title(a:line) == 1
+        call s:decho("Rebuild By Group: ".a:line)
+        call CsMgmtRebuildByGroup(a:line, a:pos)
+        return
+    endif
+
     if s:cm_is_it_a_unexpect_line(a:line) == 1
         " echo 'it is a unexpect line'
         return
@@ -1295,11 +1319,10 @@ func! s:cm_buf_refresh(line)
 endf
 
 let s:header = ['" +-------------- Key Map ---------------+',
-              \ '" | *Uppercase letter for group action.  |',
-              \ '" | Press a or A: to aetach              |',
-              \ '" | Press d or B: to detach              |',
-              \ '" | Press b or D: to build db            |',
-              \ '" | Press r or R: to rebuild db          |',
+              \ '" | Press a: to aetach                   |',
+              \ '" | Press d: to detach                   |',
+              \ '" | Press b: to build db                 |',
+              \ '" | Press r: to rebuild db               |',
               \ '" |--------------------------------------|',
               \ '" | Press dd: delete a entry from menu   |',
               \ '" | Press oo: open all file at one time  |',
@@ -1349,11 +1372,6 @@ func! s:cm_buf_show(content)
     nnoremap <silent> <buffer> d :call CsMgmtDetach(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <silent> <buffer> b :call CsMgmtBuild(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <silent> <buffer> r :call CsMgmtRebuild(printf("%s", getline('.')), line('.'))<CR>
-
-    nnoremap <silent> <buffer> A :call CsMgmtAttachByGroup(printf("%s", getline('.')), line('.'))<CR>
-    nnoremap <silent> <buffer> D :call CsMgmtDetachByGroup(printf("%s", getline('.')), line('.'))<CR>
-    nnoremap <silent> <buffer> B :call CsMgmtBuildByGroup(printf("%s", getline('.')), line('.'))<CR>
-    nnoremap <silent> <buffer> R :call CsMgmtRebuildByGroup(printf("%s", getline('.')), line('.'))<CR>
 
     " for edit
     " deleting a db entry, but don't delete real file.
