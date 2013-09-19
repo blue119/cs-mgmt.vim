@@ -29,30 +29,35 @@ It is used to add a configure to your cs-mgmt db file that is a JSON file. Curre
 
 ## Options
 
-### CsMgmtRefHome
+### g:CsMgmtRefHome
 your cscope's database will be putted into this folder.
 
 ``let g:CsMgmtRefHome = $HOME.'/.cs-mgmt/``'
 
-### CsMgmtDbFile
+### g:CsMgmtDbFile
 It is a txt file of JSON format. that defined your db structure.
 
 ``let g:CsMgmtDbFile = $HOME.'/.cs-mgmt.json``
 
-### CsMgmtSrcDepot
+### g:CsMgmtSrcDepot
 Where will put your source code that build by CsMgmtAdd comamnd.
 
 ``let g:CsMgmtSrcDepot = g:CsMgmtRefHome.'.source_depot/``'
 
-### CsMgmtReAttach
+### g:CsMgmtReAttach
 Re-attach your reference file after rebuilding.
 
 ``let g:CsMgmtReAttach = 1``
 
-### CsMgmtCtags
+### g:CsMgmtCtags
 Support tags referencing file. It will also create a tags file of ctags after creating referencing file of cscope
 
 ``let g:CsMgmtCtags = 1``
+
+### g:CsMgmtDebugEnable
+Enable debug mode. The default is based on Decho plugin.
+
+``let g:CsMgmtDebugEnable = 1``
 
 ## JSON File
 The following JSON file is a simple configuration. It is only define a items for C standard library. If you'd like to edit this file by your self. I don't recommend you do this but I think following the fellowing configuration is a good start.
@@ -67,17 +72,15 @@ The following JSON file is a simple configuration. It is only define a items for
 ## Key Mapping In Menu
 When you cursor focused on buffer of CsMgmt, following key can be used to manage your reference configuration.
 
-### Single Operation:
-* Press a to attach 
+### Operation:
+* Press a to attach
 * Press d to detach
 * Press b to build db
 * Press r to rebuild db
 
-### Group Operation:
-* Press A to attach by group
-* Press D to detach by group
-* Press B to build db by group
-* Press R to rebuild db by group
+
+#### Group Operation:
+* It will do group operation, if the cursor is under group tag.
 
 ### Access Operation:
 * Press dd to delete a single reference or whole group.
