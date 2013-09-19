@@ -4,9 +4,9 @@
 " Version:          0.5
 " Note:
 "       the name of reference file : {parent name}*_{reference_name}.out
-"       all cscope's cross-reference file is place in g:CsMgmtRefHome that 
+"       all cscope's cross-reference file is place in g:CsMgmtRefHome that
 "       default setting is $HOME/.cs-mgmt/
-"       
+"
 "       simple item -> {O|X}\ {db_name}\ {timestamp}\ [Attach]
 "       have group  -> {foo}:
 "                          {bar}:
@@ -17,7 +17,7 @@
 "      after adding a item of reference, it will be added to json file as well.
 "      the file is indecated g:CsMgmtDbFile.
 "      if it is comeing from from file, web url, or dpkg, these files will be
-"      put into your g:CsMgmtRefHome/.source. 
+"      put into your g:CsMgmtRefHome/.source.
 "
 "      taking from apt, it will get source from apt mirror server and do
 "      dpkg-source. it would provide a buffer to show multi-candidate when the
@@ -28,7 +28,7 @@
 "          2. copy to g:CsMgmtRefHome/.source, and then unpack it
 "          3. add this item to json struct, and then write to file
 "          4. udpate the buffer of the cs-mgmt
-"          
+"
 
 if exists('g:loaded_cs_mgmt') || &cp
   finish
@@ -44,20 +44,44 @@ if !exists('chk_cscope_cmd')
 endif
 let g:loaded_cs_mgmt = 1
 
+" Debug Function ==============================================================
 " debug mode on/off
-let s:debug_enable = 0
-func! s:dprint(...)
-    if s:debug_enable
+if !exists('g:CsMgmtDebugEnable')
+    let g:CsMgmtDebugEnable = 0
+else
+    if !exists('g:dechomode')
+        echomsg 'cs-mgmt: need the Decho plugin as enableing g:CsMgmtDebugEnable.'
+        finish
+    endif
+    let g:decho_bufenter = 1
+    let g:decho_bufname = "cs-mgmt-debug"
+endif
+
+func! s:decho(...)
+    if g:CsMgmtDebugEnable
         call Decho(a:000)
+    endif
+endf
+
+func! s:defunc(...)
+    if g:CsMgmtDebugEnable
+        call Defunc(a:000)
+    endif
+endf
+
+func! s:dret(...)
+    if g:CsMgmtDebugEnable
+        call Dret(a:000)
     endif
 endf
 
 " echo for warning
 func! s:echo_waring(msg)
-    echohl WarningMsg 
+    echohl WarningMsg
         \ | echo a:msg
         \ | echohl None
 endf
+" Debug Function ==============================================================
 
 " where are your database
 if !exists('g:CsMgmtRefHome')
@@ -80,7 +104,7 @@ if !exists('g:CsMgmtReAttach')
     let g:CsMgmtReAttach = 0
 endif
 
-" It will also create a tags file of ctags after creating referencing file of 
+" It will also create a tags file of ctags after creating referencing file of
 " cscope
 if exists('g:CsMgmtCtags') && g:CsMgmtCtags == 1
 	if executable('ctags')
@@ -130,9 +154,9 @@ func! s:cm_get_src_from_file(path)
     if a:path[-len(".tar.gz"):] == ".tar.gz"
         let l:filename = split(a:path, '\/')[-1][:-len(".tar.gz")-1]
         let l:tmpfolder = g:CsMgmtSrcDepot . l:filename . '.tmp'
-        let l:decomp_cmd = 'tar zxvf ' . a:path . ' -C ' . l:tmpfolder 
+        let l:decomp_cmd = 'tar zxvf ' . a:path . ' -C ' . l:tmpfolder
     elseif a:path[-len(".tar.bz2"):] == ".tar.bz2"
-        let l:filename = split(a:path, '\/')[-1][:-len(".tar.bz2")-1] 
+        let l:filename = split(a:path, '\/')[-1][:-len(".tar.bz2")-1]
         let l:tmpfolder = g:CsMgmtSrcDepot . l:filename . '.tmp'
         let l:decomp_cmd = 'tar jxvf ' . a:path . ' -C ' . l:tmpfolder
     else
@@ -174,17 +198,17 @@ func! s:cm_get_src_from_file(path)
         let l:finalfolder = g:CsMgmtSrcDepot . l:first_folder
         if isdirectory(l:finalfolder)
             call system('rm -rf ' . l:tmpfolder)
-            call s:echo_waring( l:finalfolder 
+            call s:echo_waring( l:finalfolder
                     \ . ' folder conflict!! you have to remove it before.' )
             return -1
         else
-            call system( 
+            call system(
                 \ printf('mv %s/%s %s', l:tmpfolder, l:first_folder, l:finalfolder))
             call system('rm -rf ' . l:tmpfolder)
         endif
     else
         let l:finalfolder = g:CsMgmtSrcDepot . l:filename
-        " call s:dprint(printf('mv %s %s', l:tmpfolder, l:finalfolder))
+        " call s:decho(printf('mv %s %s', l:tmpfolder, l:finalfolder))
         call system(printf('mv %s %s', l:tmpfolder, l:finalfolder))
     endif
 
@@ -242,7 +266,7 @@ func! CsMgmtAdd(...) abort
     " a:000[3]: group <- it is not necessary.
     if len(a:000) > 4 || len(a:000) < 2
         echo ":Csmgmtadd <[dir|file]> <src path> [[<alias>] <group>]"
-        echo "  example:" 
+        echo "  example:"
         echo "    :Csmgmtadd dir /foo/bar"
         echo "    :Csmgmtadd dir /foo/bar foobar"
         echo "    :Csmgmtadd dir /foo/bar foobar foo/bar"
@@ -253,7 +277,7 @@ func! CsMgmtAdd(...) abort
         return
     endif
 
-    if !exists('g:cm_view') 
+    if !exists('g:cm_view')
         if s:cm_init_check() == -1
             return
         endif
@@ -303,7 +327,7 @@ func! CsMgmtAdd(...) abort
             endfor
 
             if has_key(l:db, l:ref_name)
-                call s:echo_waring( l:ref_name . " has existed in " 
+                call s:echo_waring( l:ref_name . " has existed in "
                             \ . join(l:grp_parent, "/") . ".")
                 return
             endif
@@ -423,11 +447,11 @@ func! s:cm_deep_grp_collect(indent_level, collect_list, config, parent)
 
     for k in keys(a:config)
         if type(a:config[k]) == 3
-            call add(a:collect_list, 
+            call add(a:collect_list,
                     \ s:cm_show_item_construct(l:indent_level, a:parent, k))
         elseif type(a:config[k]) == 4
             call add(a:collect_list, printf('%s:', s:cm_str_add_indent(l:indent_level, k)))
-            call s:cm_deep_grp_collect(l:indent_level, a:collect_list, 
+            call s:cm_deep_grp_collect(l:indent_level, a:collect_list,
                         \ a:config[k], printf('%s_%s', a:parent, k))
         endif
     endfor
@@ -484,35 +508,30 @@ endf
 
 func! s:get_ref_item_indent(line)
     let l:rep = s:cm_get_rep(a:line)
-    " call s:dprint(l:rep)
     let l:l = matchstr(a:line, l:rep)
     return substitute(l:l, l:rep, '\1', '')
 endf
 
 func! s:get_ref_item_status(line)
     let l:rep = s:cm_get_rep(a:line)
-    " call s:dprint(l:rep)
     let l:l = matchstr(a:line, l:rep)
     return substitute(l:l, l:rep, '\2', '')
 endf
 
 func! s:get_ref_item_name(line)
     let l:rep = s:cm_get_rep(a:line)
-    " call s:dprint(l:rep)
     let l:l = matchstr(a:line, l:rep)
     return substitute(l:l, l:rep, '\3', '')
 endf
 
 func! s:get_ref_item_timestamp(line)
     let l:rep = s:cm_get_rep(a:line)
-    " call s:dprint(l:rep)
     let l:l = matchstr(a:line, l:rep)
     return substitute(l:l, l:rep, '\4', '')
 endf
 
 func! s:get_ref_item_attach(line)
     let l:rep = s:cm_get_rep(a:line)
-    " call s:dprint(l:rep)
     let l:l = matchstr(a:line, l:rep)
     return substitute(l:l, l:rep, '\5', '')
 endf
@@ -523,7 +542,7 @@ endf
 
 func! s:cm_show_item_construct(indent_level, parent, ref_name)
     " return string format 'l:ref_status_token l:db_name l:ref_ftime l:db_attach'
-    let l:ref_full_name = (a:parent == '') ? 
+    let l:ref_full_name = (a:parent == '') ?
                 \   (a:ref_name):
                 \   (a:parent.'_'.a:ref_name)
     let l:ref_status_token = s:ref_nonexist_token
@@ -531,10 +550,10 @@ func! s:cm_show_item_construct(indent_level, parent, ref_name)
     let l:ref_indent = repeat(s:cm_indent_token, a:indent_level)
 
     " to check the status of the reference file
-    " call s:dprint(g:CsMgmtRefHome.l:ref_full_name.'.out')
+    " call s:decho(g:CsMgmtRefHome.l:ref_full_name.'.out')
     if filereadable(g:CsMgmtRefHome.l:ref_full_name.'.out')
         let l:ref_status_token = s:ref_exist_token
-        let l:ref_ftime = strftime("%Y.%m.%d %H:%M", 
+        let l:ref_ftime = strftime("%Y.%m.%d %H:%M",
                     \ getftime(g:CsMgmtRefHome.l:ref_full_name.'.out'))
 
         if index(s:ref_attach_list, l:ref_full_name) != -1
@@ -543,8 +562,8 @@ func! s:cm_show_item_construct(indent_level, parent, ref_name)
     endif
 
     if l:ref_status_token == s:ref_exist_token
-        return printf("%s%s %s %s%s", 
-                    \ l:ref_indent, l:ref_status_token, 
+        return printf("%s%s %s %s%s",
+                    \ l:ref_indent, l:ref_status_token,
                     \ a:ref_name, l:ref_ftime, l:ref_attach)
     else
         return printf("%s%s %s", l:ref_indent, l:ref_status_token, a:ref_name)
@@ -605,7 +624,7 @@ func! s:cm_get_children_pos_list_from_buf(level, line, pos)
 
     while 1
         let l:pos += 1
-        if s:cm_which_level_is_it(getline(l:pos)) > (l:level) 
+        if s:cm_which_level_is_it(getline(l:pos)) > (l:level)
                 \ && s:cm_is_it_a_unexpect_line(getline(l:pos)) == 0
             call insert(l:children_pos_list, l:pos, 0)
         endif
@@ -649,7 +668,7 @@ func! s:cm_get_parent_list_from_buf(level, line, pos)
 endf
 
 func! s:cm_is_it_a_comment(line)
-    if a:line[0] == '"' 
+    if a:line[0] == '"'
         return 1
     else
         return 0
@@ -665,7 +684,7 @@ func! s:cm_is_it_a_group_title(line)
 endf
 
 func! s:cm_is_it_a_blank_line(line)
-    if a:line == '' 
+    if a:line == ''
         return 1
     else
         return 0
@@ -751,7 +770,7 @@ func! CsMgmtAttach(line, pos)
     endif
 
     if s:cm_str_strip(a:line)[0] == s:ref_nonexist_token
-        call s:echo_waring("Hasn't build") 
+        call s:echo_waring("Hasn't build")
         return
     endif
 
@@ -759,12 +778,12 @@ func! CsMgmtAttach(line, pos)
     let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
     let l:ref_name = s:get_ref_item_name(a:line)
 
-    let l:ref_full_name = (len(l:parent_list) == 0) ? 
+    let l:ref_full_name = (len(l:parent_list) == 0) ?
                 \   (l:ref_name):
                 \   (join(l:parent_list, '_').'_'.l:ref_name)
 
     if index(s:ref_attach_list, l:ref_full_name) != -1
-        " call s:echo_waring("Don\'t Attach Twice") 
+        " call s:echo_waring("Don\'t Attach Twice")
         return
     endif
 
@@ -775,9 +794,9 @@ func! CsMgmtAttach(line, pos)
     call s:cm_get_write_mode()
     call setline(a:pos, a:line." Attach")
     call s:cm_get_readonly_mode()
- 
+
     exec "cs add ".g:CsMgmtRefHome.l:ref_full_name.'.out'
-	
+
 	" for ctags
 	if g:CsMgmtCtags == 1
 		call s:cm_add_tag_to_tags(g:CsMgmtRefHome . l:ref_full_name . '.tags')
@@ -859,7 +878,7 @@ func! CsMgmtOpenAllFile(line, pos)
     endif
 
     if s:cm_str_strip(a:line)[0] == s:ref_nonexist_token
-        call s:echo_waring("You have not built its cross-reference.") 
+        call s:echo_waring("You have not built its cross-reference.")
         return
     endif
 
@@ -868,17 +887,17 @@ func! CsMgmtOpenAllFile(line, pos)
     let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
     let l:ref_name = s:get_ref_item_name(a:line)
     let l:all_file_list = []
-    let l:parent = (len(l:parent_list) == 0) ? 
+    let l:parent = (len(l:parent_list) == 0) ?
                 \   (''):
                 \   (join(l:parent_list, '_'))
 
-    let l:ref_full_name = (l:parent == '') ? 
+    let l:ref_full_name = (l:parent == '') ?
                 \   (l:ref_name):
                 \   (l:parent.'_'.l:ref_name)
 
     let l:abs_path = g:CsMgmtRefHome . l:ref_full_name . ".files"
     let l:file_list = readfile(l:abs_path)
-    
+
     " move to main buffer
     wincmd l
 
@@ -922,12 +941,12 @@ func! CsMgmtDetach(line, pos)
     let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
     let l:ref_name = s:get_ref_item_name(a:line)
 
-    let l:ref_full_name = (len(l:parent_list) == 0) ? 
+    let l:ref_full_name = (len(l:parent_list) == 0) ?
                 \   (l:ref_name):
                 \   (join(l:parent_list, '_').'_'.l:ref_name)
 
     if index(s:ref_attach_list, l:ref_full_name) == -1
-        " call s:echo_waring("Need Attach Befor") 
+        " call s:echo_waring("Need Attach Befor")
         return
     endif
 
@@ -938,7 +957,7 @@ func! CsMgmtDetach(line, pos)
     call s:cm_get_write_mode()
     call setline(a:pos, a:line[0:-len(" Attach")-1])
     call s:cm_get_readonly_mode()
- 
+
     exec "cs kill ".g:CsMgmtRefHome.l:ref_full_name.'.out'
 
 	" for ctags
@@ -966,7 +985,7 @@ func! s:cm_path_walk(path, all_file_list)
 endf
 
 func! s:cm_db_cs_build(ref_name)
-    let l:cmd_string = printf('cd %s && cscope -b -q -k -i%s.files -f%s.out', 
+    let l:cmd_string = printf('cd %s && cscope -b -q -k -i%s.files -f%s.out',
             \ g:CsMgmtRefHome, a:ref_name, a:ref_name)
 
     echohl TabLine
@@ -979,7 +998,7 @@ func! s:cm_db_cs_build(ref_name)
 endf
 
 func! s:cm_db_ctags_build(ref_name)
-    let l:cmd_string = printf('cd %s && ctags -L %s.files -f %s.tags', 
+    let l:cmd_string = printf('cd %s && ctags -L %s.files -f %s.tags',
             \ g:CsMgmtRefHome, a:ref_name, a:ref_name)
 
     echohl TabLine
@@ -1013,16 +1032,16 @@ func! CsMgmtBuild(line, pos)
     let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
     let l:ref_name = s:get_ref_item_name(a:line)
     let l:all_file_list = []
-    let l:parent = (len(l:parent_list) == 0) ? 
+    let l:parent = (len(l:parent_list) == 0) ?
                 \   (''):
                 \   (join(l:parent_list, '_'))
 
-    let l:ref_full_name = (l:parent == '') ? 
+    let l:ref_full_name = (l:parent == '') ?
                 \   (l:ref_name):
                 \   (l:parent.'_'.l:ref_name)
 
     if filereadable(g:CsMgmtRefHome.l:ref_full_name.'.out')
-        let l:msg = "it has existed on " . g:CsMgmtRefHome 
+        let l:msg = "it has existed on " . g:CsMgmtRefHome
                     \ . ' you can try to rebuild it.'
         call s:echo_waring(l:msg)
         return
@@ -1094,11 +1113,11 @@ func! CsMgmtRebuild(line, pos)
     let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
     let l:ref_name = s:get_ref_item_name(a:line)
     let l:all_file_list = []
-    let l:parent = (len(l:parent_list) == 0) ? 
+    let l:parent = (len(l:parent_list) == 0) ?
                 \   (''):
                 \   (join(l:parent_list, '_'))
 
-    let l:ref_full_name = (l:parent == '') ? 
+    let l:ref_full_name = (l:parent == '') ?
                 \   (l:ref_name):
                 \   (l:parent.'_'.l:ref_name)
 
@@ -1179,36 +1198,36 @@ func! s:cm_json_dip(indent_level, value)
         let l:vt = type(l:value)
 
         if l:vt == 1
-            call add(s:json2file_list, 
-                        \   repeat(s:cm_indent_token, l:il) . 
-                        \   "'" . l:key . "'" . 
+            call add(s:json2file_list,
+                        \   repeat(s:cm_indent_token, l:il) .
+                        \   "'" . l:key . "'" .
                         \   " : " . "'" . l:value . "', " )
 
         elseif l:vt == 3
-            call add(s:json2file_list, 
-                    \ repeat(s:cm_indent_token, l:il) . 
+            call add(s:json2file_list,
+                    \ repeat(s:cm_indent_token, l:il) .
                     \ "'" . l:key . "'" . " : " . "[")
 
             let l:il += 1
             for i in l:value
-                call add(s:json2file_list, 
-                        \ repeat(s:cm_indent_token, l:il) . 
+                call add(s:json2file_list,
+                        \ repeat(s:cm_indent_token, l:il) .
                         \ "'" . i . "', ")
             endfor
             let l:il -= 1
             call add(s:json2file_list, repeat(s:cm_indent_token, l:il) . "], ")
 
         elseif l:vt == 4
-            call add(s:json2file_list, 
-                    \ repeat(s:cm_indent_token, l:il) . 
+            call add(s:json2file_list,
+                    \ repeat(s:cm_indent_token, l:il) .
                     \ "'" . l:key . "'" . " : " . "{")
 
             let l:il += 1
-            call s:cm_json_dip(l:il, l:value) 
+            call s:cm_json_dip(l:il, l:value)
             let l:il -= 1
             call add(s:json2file_list, repeat(s:cm_indent_token, l:il) . "}, ")
         endif
-    endfor 
+    endfor
 endf
 
 func! s:cm_json2file()
@@ -1216,10 +1235,10 @@ func! s:cm_json2file()
     let l:indent_level = 0
     let l:json = s:cm_get_db()
 
-    call add(s:json2file_list, '{') 
+    call add(s:json2file_list, '{')
     let l:indent_level += 1
-    call s:cm_json_dip(l:indent_level, l:json) 
-    call add(s:json2file_list, '}') 
+    call s:cm_json_dip(l:indent_level, l:json)
+    call add(s:json2file_list, '}')
     call writefile(s:json2file_list, g:CsMgmtDbFile)
 endf
 
@@ -1264,7 +1283,7 @@ func! s:cm_buf_refresh(line)
                     endif
                 endif
                 call append(line('$'), i)
-            endfor 
+            endfor
 
             call s:cm_get_readonly_mode()
         endif
@@ -1275,7 +1294,7 @@ func! s:cm_buf_refresh(line)
     endif
 endf
 
-let s:header = ['" +-------------- Key Map ---------------+', 
+let s:header = ['" +-------------- Key Map ---------------+',
               \ '" | *Uppercase letter for group action.  |',
               \ '" | Press a or A: to aetach              |',
               \ '" | Press d or B: to detach              |',
@@ -1306,10 +1325,10 @@ func! s:cm_buf_show(content)
             if line('$') != len(s:header) + 1
                 call append(line('$'), '')
             endif
-            " call s:dprint(i)
+            " call s:decho(i)
         endif
         call append(line('$'), i)
-    endfor 
+    endfor
    " call append(len(l:header)+1, a:content)
 
     setl buftype=nofile
