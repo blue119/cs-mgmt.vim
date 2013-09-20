@@ -33,18 +33,10 @@
 if exists('g:loaded_cs_mgmt') || &cp
   finish
 endif
-
-if !exists('chk_cscope_cmd')
-    if executable('cscope')
-        let cscope_cmd = 'cscope'
-    else
-        echomsg 'cs-mgmt: cscope command not found in PATH.'
-        finish
-    endif
-endif
 let g:loaded_cs_mgmt = 1
 
-" Debug Function ==============================================================
+" Utils {{{
+" Debug Function"{{{
 " debug mode on/off
 if !exists('g:CsMgmtDebugEnable')
     let g:CsMgmtDebugEnable = 0
@@ -59,19 +51,19 @@ endif
 
 func! s:decho(...)
     if g:CsMgmtDebugEnable
-        call Decho(a:000)
+        call Decho(string(a:000[0]))
     endif
 endf
 
-func! s:defunc(...)
+func! s:dfunc(...)
     if g:CsMgmtDebugEnable
-        call Defunc(a:000)
+        call Dfunc(string(a:000[0]))
     endif
 endf
 
 func! s:dret(...)
     if g:CsMgmtDebugEnable
-        call Dret(a:000)
+        call Dret(string(a:000[0]))
     endif
 endf
 
@@ -81,7 +73,83 @@ func! s:echo_waring(msg)
         \ | echo a:msg
         \ | echohl None
 endf
-" Debug Function ==============================================================
+" }}}
+" }}}
+
+" Check tag engin "{{{
+
+" the cm_engins's structure
+" {'cscope': {
+"               'cmd': 'cscope',
+"               'langs': {'c': [all extension], },
+"            },
+" }
+let s:cm_engines = {}
+func! s:cm_engines_register(engine, cmd)
+    call s:dfunc(printf("cm_engines_register(%s, %s) enter", a:engine, a:cmd))
+    let s:cm_engines[a:engine] = {'cmd': a:cmd}
+    call s:decho(s:cm_engines)
+    call s:dret("cm_engines_register return")
+endfunc
+
+" the lang's structure
+" {
+"   'C': [all extension of C with expr],
+"   'C++': [*.c++, *.cc, *.cp, *.cpp, *.cxx, *.hh, *.hp, *.hpp, *.hxx, ],
+" }
+"
+func! s:cm_engines_set_langs(engine, langs)
+    call s:dfunc(printf("cm_engines_set_langs(%s, %s) enter", a:engine, string(a:langs)))
+    let s:cm_engines[a:engine]['langs'] = a:langs
+    call s:decho(s:cm_engines[a:engine])
+    call s:dret("cm_engines_set_langs return")
+endfunc
+
+" g:CsMgmtCscopeDisable
+if !exists('g:CsMgmtCscopeDisable')
+    if executable('cscope')
+        let cscope_cmd = 'cscope'
+        call s:cm_engines_register('cscope', 'cscope')
+        " refer to ctags
+        let _langs = {} 
+        let _langs['C'] = ['*.c']
+        let _langs['C++'] = ['*.c++', '*.cc', '*.cp', '*.cpp', '*.cxx', '*.h', '*.h++', '*.hh', '*.hp', '*.hpp', '*.hxx', '*.C', '*.H']
+        call s:cm_engines_set_langs('cscope', _langs)
+    else
+        echomsg 'cs-mgmt: cscope command not found in PATH.'
+        echomsg 'cs-mgmt: you can disable cscope engine with g:CsMgmtCscopeDisable.'
+        finish
+    endif
+else
+    if g:CsMgmtCscopeDisable == 1
+        " to disable cscope engine
+    endif
+endif
+
+" It will also create a tags file of ctags after creating referencing file of
+" cscope
+if exists('g:CsMgmtCtags') && g:CsMgmtCtags == 1
+	if executable('ctags')
+		let ctags_cmd = 'ctags'
+        call s:cm_engines_register('ctags', 'ctags')
+
+        let _langs = {}
+        let _langs_map = split(system('ctags --list-maps'), '\n')
+        for lang in _langs_map
+            let l = split(lang)
+            let _langs[l[0]] = l[1:]
+        endfor
+        call s:cm_engines_set_langs('ctags', _langs)
+
+	else
+		echomsg 'cs-mgmt: ctags command not found in PATH.'
+		echomsg 'cs-mgmt: Please disable the g:CsmgmtCtags variable.'
+        finish
+	endif
+else
+	let g:CsMgmtCtags = 0
+endif
+"}}}
 
 " where are your database
 if !exists('g:CsMgmtRefHome')
@@ -102,20 +170,6 @@ endif
 " re-attach the refernece file after rebuild
 if !exists('g:CsMgmtReAttach')
     let g:CsMgmtReAttach = 0
-endif
-
-" It will also create a tags file of ctags after creating referencing file of
-" cscope
-if exists('g:CsMgmtCtags') && g:CsMgmtCtags == 1
-	if executable('ctags')
-		let ctags_cmd = 'ctags'
-	else
-		echomsg 'cs-mgmt: ctags command not found in PATH.'
-		echomsg 'cs-mgmt: disable g:CsmgmtCtags variable.'
-		let g:CsMgmtCtags = 0
-	endif
-else
-	let g:CsMgmtCtags = 0
 endif
 
 func! s:cm_add_tag_to_tags(tag)
