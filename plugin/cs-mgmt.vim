@@ -532,7 +532,7 @@ let s:ref_nonexist_re = '^\(\s\{}\)'
 let s:ref_exist_re = '^\(\s\{}\)'
                 \ .'\([OX]\)\s'
                 \ .'\([0-9a-zA-Z\-._~+]\{}\)\s\{}'
-                \ .'\(\d\{4}\.\d\{2}\.\d\{2}\s\d\{2}\:\d\{2}\)'
+                \ .'\(\d\{2}/\d\{2}/\d\{2}\s\d\{2}\:\d\{2}\)'
                 \ .'\(Attach\)\{}'
 
 
@@ -607,7 +607,7 @@ func! s:cm_show_item_construct(indent_level, parent, ref_name)
     " call s:decho(g:CsMgmtRefHome.l:ref_full_name.'.out')
     if filereadable(g:CsMgmtRefHome.l:ref_full_name.'.out')
         let l:ref_status_token = s:ref_exist_token
-        let l:ref_ftime = strftime("%Y.%m.%d %H:%M",
+        let l:ref_ftime = strftime("%D %H:%M",
                     \ getftime(g:CsMgmtRefHome.l:ref_full_name.'.out'))
 
         if index(s:ref_attach_list, l:ref_full_name) != -1
@@ -1328,7 +1328,7 @@ func! s:cm_buf_color()
     call matchadd('cm_ref_name', '^\s\{}[OX]\s\(.*\)$')
 
     hi cm_timestamp ctermfg=darkgreen guifg=darkgreen
-    call matchadd('cm_timestamp', '\d\{4}\.\d\{2}\.\d\{2}\s\d\{2}\:\d\{2}')
+    call matchadd('cm_timestamp', '\d\{2}/\d\{2}/\d\{2}\s\d\{2}\:\d\{2}')
 
     hi cm_ref_attach ctermfg=darkblue guifg=darkblue
     call matchadd('cm_ref_attach', '\ Attach$')
@@ -1398,6 +1398,7 @@ func! s:cm_buf_show(content)
     call append(0, s:header)
 
     for i in a:content
+        call s:decho(string(s:cm_which_level_is_it(i)).": ".i)
         if s:cm_which_level_is_it(i) == 0
             if line('$') != len(s:header) + 1
                 call append(line('$'), '')
