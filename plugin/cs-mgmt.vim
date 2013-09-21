@@ -111,7 +111,7 @@ if !exists('g:CsMgmtCscopeDisable')
         let cscope_cmd = 'cscope'
         call s:cm_engines_register('cscope', 'cscope')
         " refer to ctags
-        let _langs = {} 
+        let _langs = {}
         let _langs['C'] = ['*.c']
         let _langs['C++'] = ['*.c++', '*.cc', '*.cp', '*.cpp', '*.cxx', '*.h', '*.h++', '*.hh', '*.hp', '*.hpp', '*.hxx', '*.C', '*.H']
         call s:cm_engines_set_langs('cscope', _langs)
@@ -755,6 +755,15 @@ func! s:cm_is_it_a_unexpect_line(line)
     endif
 endf
 
+func! s:cm_is_item_n_grp(line)
+    if   s:cm_is_it_a_blank_line(a:line)
+    \ || s:cm_is_it_a_comment(a:line)
+        return 0
+    else
+        return 1
+    endif
+endf
+
 func! s:cm_get_write_mode()
     setl buftype=
     setl modifiable
@@ -1033,6 +1042,7 @@ func! CsMgmtDetach(line, pos)
 endf
 
 func! s:cm_path_walk(path, all_file_list)
+    call s:dfunc(printf("cm_path_walk(%s) enter", a:path))
     let l:file_list = split(globpath(a:path, '*'), '\n')
     for file in l:file_list
         if isdirectory(file)
@@ -1048,6 +1058,7 @@ func! s:cm_path_walk(path, all_file_list)
             endif
         endif
     endfor
+    call s:dret("cm_path_walk return")
 endf
 
 func! s:cm_db_cs_build(ref_name)
@@ -1176,6 +1187,8 @@ func! CsMgmtBuild(line, pos)
 endf
 
 func! CsMgmtRebuild(line, pos)
+    call s:dfunc(printf("CsMgmtRebuild(%s, %s) enter",
+                \ string(a:line), string(a:pos)))
     if s:cm_is_it_a_group_title(a:line) == 1
         call s:decho("Rebuild By Group: ".a:line)
         call CsMgmtRebuildByGroup(a:line, a:pos)
@@ -1210,6 +1223,7 @@ func! CsMgmtRebuild(line, pos)
     call writefile(l:all_file_list, g:CsMgmtRefHome.l:ref_full_name.'.files')
 
     let l:path_list = s:cm_get_path_list_from_config(l:parent_list, l:ref_name)
+    call s:decho("path_list: " . string(l:path_list))
 
     " if type(l:path_list) == 1
         " let l:path_list = [l:path_list]
@@ -1228,6 +1242,8 @@ func! CsMgmtRebuild(line, pos)
             call add(l:include_path_list, p)
         endif
     endfor
+    call s:decho("include_path_list: " . string(l:include_path_list))
+    call s:decho("knock_out_path_list: " . string(l:knock_out_path_list))
 
     for p in l:include_path_list
         call s:cm_path_walk(p, l:all_file_list)
@@ -1265,7 +1281,151 @@ func! CsMgmtRebuild(line, pos)
         call CsMgmtDetach(a:line, a:pos)
         call CsMgmtAttach(a:line[0:-len(" Attach")-1], a:pos)
     endif
+    call s:dret("CsMgmtRebuild return")
 endf
+
+let s:rvs_able_token = "!@!"
+func! s:cm_list_to_rvs_able_str(plist)
+    return join(a:plist, s:rvs_able_token)
+endf
+
+func! s:cm_rvs_able_to_list(str)
+    return split(a:str, s:rvs_able_token)
+endf
+
+
+let s:cm_edit_bufnr = ""
+func! CsMgmtEdit(line, pos)
+    " if s:cm_is_it_a_group_title(a:line) == 1
+        " call s:decho("Build By Group: ".a:line)
+        " call CsMgmtBuildByGroup(a:line, a:pos)
+        " return
+    " endif
+
+    if s:cm_is_item_n_grp(a:line) == 0
+        call s:decho(a:line)
+        " echo 'it is a unexpect line'
+        return
+    endif
+
+    let l:ref_level = s:cm_which_level_is_it(a:line)
+    let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
+    if s:cm_is_it_a_group_title(a:line) == 1
+        let l:ref_name = s:cm_str_strip(a:line)[:-2]
+    else
+        let l:ref_name = s:get_ref_item_name(a:line)
+    endif
+    let l:parent = (len(l:parent_list) == 0) ?
+                \   (''):
+                \   (join(l:parent_list, '_'))
+
+    let l:parent_rvs = s:cm_list_to_rvs_able_str(l:parent_list)
+    call s:decho("parent_rvs: " . l:parent_rvs)
+
+    let l:ref_full_name = (l:parent == '') ?
+                \   (l:ref_name):
+                \   (l:parent.'_'.l:ref_name)
+    call s:decho("ref_level: " . l:ref_level)
+    call s:decho("ref_name: " . l:ref_name)
+    call s:decho("ref_full_name: " . l:ref_full_name)
+    call s:decho("parent_list: " . string(l:parent_list))
+    call s:decho("parent: " . l:parent)
+
+    let l:db= s:cm_get_db()
+    let l:item = {}
+    " no parent, if it is stay in top level
+    if l:ref_level
+        for i in l:parent_list
+            let l:db= l:db[i]
+        endfor
+    endif
+
+    let l:item[l:ref_name] = l:db[l:ref_name]
+    call s:decho(l:item)
+
+    let l:tmp = l:parent_list
+    let s:cm_edit_bufnr = s:cm_list_to_rvs_able_str(insert(l:tmp, tempname(), 0)) . '.cs-mgmt-edit'
+    call s:decho("cm_edit_bufnr: " .  s:cm_edit_bufnr)
+
+    wincmd l
+
+    exec 'silent edit ' . s:cm_edit_bufnr
+
+    let s:json2file_list = []
+    let l:indent_level = 1
+    let l:json = l:item
+
+    call add(s:json2file_list, '{')
+    call s:cm_json_dip(l:indent_level, l:json)
+    call add(s:json2file_list, '}')
+
+    for i in s:json2file_list
+        call append(line('$'), i)
+    endfor
+
+    " if filereadable(g:CsMgmtRefHome.l:ref_full_name.'.out')
+        " let l:msg = "it has existed on " . g:CsMgmtRefHome
+                    " \ . ' you can try to rebuild it.'
+        " call s:echo_waring(l:msg)
+        " return
+    " endif
+
+    " file create
+    " call writefile(l:all_file_list, g:CsMgmtRefHome.l:ref_full_name.'.files')
+
+    " let l:path_list = s:cm_get_path_list_from_config(l:parent_list, l:ref_name)
+
+    " if type(l:path_list) == 1
+        " let l:path_list = [l:path_list]
+    " endif
+
+    " echohl TabLineFill
+        " \ | echo l:ref_name.' collecting.... '
+        " \ | echohl None
+
+    " let l:include_path_list = []
+    " let l:knock_out_path_list = []
+    " for p in (type(l:path_list) == 1 ? [l:path_list] : l:path_list)
+        " if p[0] == '-'
+            " call add(l:knock_out_path_list, p[1:])
+        " else
+            " call add(l:include_path_list, p)
+        " endif
+    " endfor
+
+    " for p in l:include_path_list
+        " call s:cm_path_walk(p, l:all_file_list)
+    " endfor
+
+    " for p in l:knock_out_path_list
+        " call filter(l:all_file_list, 'v:val !~ "'. p .'"')
+    " endfor
+
+    " if len(l:all_file_list) == 0
+        " let l:msg =  'It is not finish to build cscope reference,'
+            " \ .  ' because no fidning any c or cpp file in ' . l:include_path_list
+        " call s:echo_waring(l:msg)
+        " return
+    " endif
+
+    " write to file
+    " call writefile(l:all_file_list, g:CsMgmtRefHome.l:ref_full_name.'.files')
+
+    " real build for cscope
+    " call s:cm_db_cs_build(l:ref_full_name)
+
+    " real build for ctags
+    " if g:CsMgmtCtags == 1
+        " call s:cm_db_ctags_build(l:ref_full_name)
+    " endif
+
+    " add a Attach word on the end of line
+    " call s:cm_get_write_mode()
+    " call setline(a:pos,
+        " \ s:cm_show_item_construct(l:ref_level, l:parent, l:ref_name))
+    " call s:cm_get_readonly_mode()
+endf
+
 
 func! s:cm_json_dip(indent_level, value)
     for item in items(a:value)
@@ -1279,7 +1439,7 @@ func! s:cm_json_dip(indent_level, value)
             call add(s:json2file_list,
                         \   repeat(s:cm_indent_token, l:il) .
                         \   "'" . l:key . "'" .
-                        \   " : " . "'" . l:value . "', " )
+                        \   " : " . "'" . l:value . "'," )
 
         elseif l:vt == 3
             call add(s:json2file_list,
@@ -1290,10 +1450,10 @@ func! s:cm_json_dip(indent_level, value)
             for i in l:value
                 call add(s:json2file_list,
                         \ repeat(s:cm_indent_token, l:il) .
-                        \ "'" . i . "', ")
+                        \ "'" . i . "',")
             endfor
             let l:il -= 1
-            call add(s:json2file_list, repeat(s:cm_indent_token, l:il) . "], ")
+            call add(s:json2file_list, repeat(s:cm_indent_token, l:il) . "],")
 
         elseif l:vt == 4
             call add(s:json2file_list,
@@ -1303,7 +1463,7 @@ func! s:cm_json_dip(indent_level, value)
             let l:il += 1
             call s:cm_json_dip(l:il, l:value)
             let l:il -= 1
-            call add(s:json2file_list, repeat(s:cm_indent_token, l:il) . "}, ")
+            call add(s:json2file_list, repeat(s:cm_indent_token, l:il) . "},")
         endif
     endfor
 endf
@@ -1313,8 +1473,8 @@ func! s:cm_json2file()
     let l:indent_level = 0
     let l:json = s:cm_get_db()
 
-    call add(s:json2file_list, '{')
     let l:indent_level += 1
+    call add(s:json2file_list, '{')
     call s:cm_json_dip(l:indent_level, l:json)
     call add(s:json2file_list, '}')
     call writefile(s:json2file_list, g:CsMgmtDbFile)
@@ -1427,6 +1587,7 @@ func! s:cm_buf_show(content)
     nnoremap <silent> <buffer> d :call CsMgmtDetach(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <silent> <buffer> b :call CsMgmtBuild(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <silent> <buffer> r :call CsMgmtRebuild(printf("%s", getline('.')), line('.'))<CR>
+    nnoremap <silent> <buffer> e :call CsMgmtEdit(printf("%s", getline('.')), line('.'))<CR>
 
     " for edit
     " deleting a db entry, but don't delete real file.
@@ -1445,6 +1606,30 @@ endf
 
 let s:CsMgmtDb = s:cm_get_db_from_file()
 let s:json2file_list = []
+
+augroup CsMgmtEditAutoCmd
+    " update to .cs-mgmt.json
+    au BufWritePre *.cs-mgmt-edit
+            \   let db = s:cm_get_db()
+            \|  let item = db
+            \|  let buf = eval(join(getline('^', '$')))
+            \|  let plist = s:cm_rvs_able_to_list(bufname('%'))[1:]
+            \|  let plist[-1] = plist[-1][:-(len(".cs-mgmt-edit") + 1)]
+            \|  let s:json2file_list = []
+            \|  let indent_level = 1
+            \|  call s:decho("plist: " . string(plist))
+            \|  call s:decho("buf: " . string(buf))
+            \|  call s:decho("buf.keys: " . string(keys(buf)))
+            \|  for p in plist | let item = item[p] | endfor
+            \|  for k in keys(buf)
+            \|      let item[k] = buf[k]
+            \|  endfor
+            \|  call add(s:json2file_list, '{')
+            \|  call s:cm_json_dip(indent_level, db)
+            \|  call add(s:json2file_list, '}')
+            \|  call s:decho(s:json2file_list)
+            \|  call writefile(s:json2file_list, g:CsMgmtDbFile)
+augroup END
 
 command! -nargs=* -complete=dir Csmgmtadd call CsMgmtAdd(<f-args>)
 command! CsMgmt call CsMgmt()
