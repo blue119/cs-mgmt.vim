@@ -37,18 +37,7 @@ let g:loaded_cs_mgmt = 1
 
 " Utils {{{
 " Debug Function"{{{
-" debug mode on/off
-if !exists('g:CsMgmtDebugEnable')
-    let g:CsMgmtDebugEnable = 0
-else
-    if !exists('g:dechomode')
-        echomsg 'cs-mgmt: need the Decho plugin as enableing g:CsMgmtDebugEnable.'
-        finish
-    endif
-    let g:decho_bufenter = 1
-    let g:decho_bufname = "cs-mgmt-debug"
-endif
-
+" Debug print "{{{
 func! s:decho(...)
     if g:CsMgmtDebugEnable
         call Decho(string(a:000[0]))
@@ -67,7 +56,10 @@ func! s:dret(...)
     endif
 endf
 
-" echo for warning
+func! s:cm_echohl0(msg)
+    echomsg a:msg
+endf
+
 func! s:cm_echohl1(msg)
     echohl WarningMsg
         \ | echo a:msg
@@ -91,11 +83,23 @@ func! s:cm_echohl4(msg)
         \ | echo a:msg
         \ | echohl None
 endf
+" }}} Debug print
 
-" }}}
-" }}}
+" debug mode on/off {{{
+if !exists('g:CsMgmtDebugEnable')
+    let g:CsMgmtDebugEnable = 0
+else
+    if !exists('g:dechomode')
+        call s:cm_echohl0( 'cs-mgmt: need the Decho plugin as enableing g:CsMgmtDebugEnable.' )
+        finish
+    endif
+    let g:decho_bufenter = 1
+    let g:decho_bufname = "cs-mgmt-debug"
+endif
 
-" Check tag engin "{{{
+" }}} debug mode on/off
+" }}} Debug Function
+" }}} Utils
 
 " the cm_engins's structure
 " {'cscope': {
@@ -135,8 +139,8 @@ if !exists('g:CsMgmtCscopeDisable')
         let _langs['C++'] = ['*.c++', '*.cc', '*.cp', '*.cpp', '*.cxx', '*.h', '*.h++', '*.hh', '*.hp', '*.hpp', '*.hxx', '*.C', '*.H']
         call s:cm_engines_set_langs('cscope', _langs)
     else
-        echomsg 'cs-mgmt: cscope command not found in PATH.'
-        echomsg 'cs-mgmt: you can disable cscope engine with g:CsMgmtCscopeDisable.'
+        call s:cm_echohl0( 'cs-mgmt: cscope command not found in PATH.' )
+        call s:cm_echohl0( 'cs-mgmt: you can disable cscope engine with g:CsMgmtCscopeDisable.' )
         finish
     endif
 else
@@ -161,8 +165,8 @@ if exists('g:CsMgmtCtags') && g:CsMgmtCtags == 1
         call s:cm_engines_set_langs('ctags', _langs)
 
 	else
-		echomsg 'cs-mgmt: ctags command not found in PATH.'
-		echomsg 'cs-mgmt: Please disable the g:CsmgmtCtags variable.'
+		call s:cm_echohl0( 'cs-mgmt: ctags command not found in PATH.' )
+		call s:cm_echohl0( 'cs-mgmt: Please disable the g:CsmgmtCtags variable.' )
         finish
 	endif
 else
