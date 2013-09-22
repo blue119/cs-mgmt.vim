@@ -68,11 +68,30 @@ func! s:dret(...)
 endf
 
 " echo for warning
-func! s:echo_waring(msg)
+func! s:cm_echohl1(msg)
     echohl WarningMsg
         \ | echo a:msg
         \ | echohl None
 endf
+
+func! s:cm_echohl2(msg)
+    echohl TabLine
+        \ | echo a:msg
+        \ | echohl None
+endf
+
+func! s:cm_echohl3(msg)
+    echohl TabLineFill
+        \ | echo a:msg
+        \ | echohl None
+endf
+
+func! s:cm_echohl4(msg)
+    echohl Title
+        \ | echo a:msg
+        \ | echohl None
+endf
+
 " }}}
 " }}}
 
@@ -196,7 +215,7 @@ endf
 
 func! s:cm_get_src_from_file(path)
     if !filereadable(a:path)
-        call s:echo_waring( a:path . ' is not readable.' )
+        call s:cm_echohl1( a:path . ' is not readable.' )
         return -1
     endif
 
@@ -224,7 +243,7 @@ func! s:cm_get_src_from_file(path)
     else
         " 1. create a tmp folder on g:CsMgmtSrcDepot that name is its file name.
         if mkdir(l:tmpfolder) != 1
-            call s:echo_waring( 'Can not create the tmpfolder ' . l:tmpfolder )
+            call s:cm_echohl1( 'Can not create the tmpfolder ' . l:tmpfolder )
             return -1
         endif
     endif
@@ -252,7 +271,7 @@ func! s:cm_get_src_from_file(path)
         let l:finalfolder = g:CsMgmtSrcDepot . l:first_folder
         if isdirectory(l:finalfolder)
             call system('rm -rf ' . l:tmpfolder)
-            call s:echo_waring( l:finalfolder
+            call s:cm_echohl1( l:finalfolder
                     \ . ' folder conflict!! you have to remove it before.' )
             return -1
         else
@@ -271,7 +290,7 @@ endf
 
 func! s:cm_get_src_from_dir(path)
     if !isdirectory(a:path)
-        call s:echo_waring( a:path . ' is not a directory.' )
+        call s:cm_echohl1( a:path . ' is not a directory.' )
         return
     endif
 
@@ -288,7 +307,7 @@ func! s:parser_grouping_name(group)
     for i in split(a:group, "/")
         if len(i)
             if len(s:cm_filename_resv_words(i))
-                call s:echo_waring("Don't contain reserved words in group name.")
+                call s:cm_echohl1("Don't contain reserved words in group name.")
                 return
             endif
             call add(l:g_name, i)
@@ -300,7 +319,7 @@ func! s:parser_grouping_name(group)
         let k = l:g_name[0]
         if has_key(l:db, k)
             if type(l:db[k]) != 4
-                call s:echo_waring("name conflict.")
+                call s:cm_echohl1("name conflict.")
                 return
             endif
             call add(l:g_parent, k)
@@ -356,7 +375,7 @@ func! CsMgmtAdd(...) abort
 
         " check reserved words in filename
         if len(s:cm_filename_resv_words(l:ref_name))
-            call s:echo_waring("Don't contain reserved words in ref_name.")
+            call s:cm_echohl1("Don't contain reserved words in ref_name.")
             return
         endif
 
@@ -381,7 +400,7 @@ func! CsMgmtAdd(...) abort
             endfor
 
             if has_key(l:db, l:ref_name)
-                call s:echo_waring( l:ref_name . " has existed in "
+                call s:cm_echohl1( l:ref_name . " has existed in "
                             \ . join(l:grp_parent, "/") . ".")
                 return
             endif
@@ -399,7 +418,7 @@ func! CsMgmtAdd(...) abort
     endfor
 
     if l:type_func == ''
-        call s:echo_waring( 'Not support '. l:type .' protocol type' )
+        call s:cm_echohl1( 'Not support '. l:type .' protocol type' )
         return
     endif
 
@@ -627,12 +646,12 @@ endf
 func! s:cm_chk_new_RefHome()
     if !isdirectory(g:CsMgmtRefHome)
         if filereadable(g:CsMgmtRefHome)
-            call s:echo_waring( g:CsMgmtRefHome . " must be a directory." )
+            call s:cm_echohl1( g:CsMgmtRefHome . " must be a directory." )
             return -1
         endif
 
         if mkdir(g:CsMgmtRefHome) != 1
-            call s:echo_waring( 'Can not create ' . g:CsMgmtRefHome)
+            call s:cm_echohl1( 'Can not create ' . g:CsMgmtRefHome)
             return -1
         endif
     endif
@@ -640,7 +659,7 @@ endf
 
 func! s:cm_init_check()
     if !filereadable(g:CsMgmtDbFile)
-        call s:echo_waring( "you need have a config file befor" )
+        call s:cm_echohl1( "you need have a config file befor" )
         return -1
     endif
 
@@ -865,26 +884,18 @@ func! s:cm_db_cscope_build(ref_name)
     let l:cmd_string = printf('cd %s && cscope -b -q -k -i%s.files -f%s.out',
             \ g:CsMgmtRefHome, a:ref_name, a:ref_name)
 
-    echohl TabLine
-        \ | echo a:ref_name.' building for cscope .... '
-        \ | echohl None
+    call s:cm_echohl2( a:ref_name.' building for cscope .... ' )
     call system(l:cmd_string)
-    echohl Title
-        \ | echo a:ref_name.' built success.'
-        \ | echohl None
+    call s:cm_echohl4( a:ref_name.' built success.' )
 endf
 
 func! s:cm_db_ctags_build(ref_name)
     let l:cmd_string = printf('cd %s && ctags -L %s.files -f %s.tags',
             \ g:CsMgmtRefHome, a:ref_name, a:ref_name)
 
-    echohl TabLine
-        \ | echo a:ref_name.' building for ctags .... '
-        \ | echohl None
+    call s:cm_echohl2( a:ref_name.' building for ctags .... ' )
     call system(l:cmd_string)
-    echohl Title
-        \ | echo a:ref_name.' built success.'
-        \ | echohl None
+    call s:cm_echohl4( a:ref_name.' built success.' )
 endf
 
 func! s:cm_get_path_list_from_config(parent_list, ref_name)
@@ -979,7 +990,7 @@ func! CsMgmtAttach(line, pos)
     endif
 
     if s:cm_str_strip(a:line)[0] == s:ref_nonexist_token
-        call s:echo_waring("Hasn't build")
+        call s:cm_echohl1("Hasn't build")
         return
     endif
 
@@ -992,7 +1003,7 @@ func! CsMgmtAttach(line, pos)
                 \   (join(l:parent_list, '_').'_'.l:ref_name)
 
     if index(s:ref_attach_list, l:ref_full_name) != -1
-        " call s:echo_waring("Don\'t Attach Twice")
+        " call s:cm_echohl1("Don\'t Attach Twice")
         return
     endif
 
@@ -1050,7 +1061,7 @@ func! CsMgmtDetach(line, pos)
                 \   (join(l:parent_list, '_').'_'.l:ref_name)
 
     if index(s:ref_attach_list, l:ref_full_name) == -1
-        " call s:echo_waring("Need Attach Befor")
+        " call s:cm_echohl1("Need Attach Befor")
         return
     endif
 
@@ -1110,7 +1121,7 @@ func! CsMgmtBuild(line, pos)
     if filereadable(g:CsMgmtRefHome.l:ref_full_name.'.out')
         let l:msg = "it has existed on " . g:CsMgmtRefHome
                     \ . ' you can try to rebuild it.'
-        call s:echo_waring(l:msg)
+        call s:cm_echohl1(l:msg)
         return
     endif
 
@@ -1123,9 +1134,7 @@ func! CsMgmtBuild(line, pos)
         " let l:path_list = [l:path_list]
     " endif
 
-    echohl TabLineFill
-        \ | echo l:ref_name.' collecting.... '
-        \ | echohl None
+    call s:cm_echohl3( l:ref_name.' collecting.... ' )
 
     let l:include_path_list = []
     let l:knock_out_path_list = []
@@ -1148,7 +1157,7 @@ func! CsMgmtBuild(line, pos)
     if len(l:all_file_list) == 0
         let l:msg =  'It is not finish to build cscope reference,'
             \ .  ' because no fidning any c or cpp file in ' . l:include_path_list
-        call s:echo_waring(l:msg)
+        call s:cm_echohl1(l:msg)
         return
     endif
 
@@ -1212,7 +1221,7 @@ func! CsMgmtRebuild(line, pos)
     if !filereadable(g:CsMgmtRefHome.l:ref_full_name.'.out')
         let l:msg =  l:ref_name.' not existed on '.g:CsMgmtRefHome.
                     \ ' you have to build it at first.'
-        call s:echo_waring(l:msg)
+        call s:cm_echohl1(l:msg)
         return
     endif
 
@@ -1226,9 +1235,7 @@ func! CsMgmtRebuild(line, pos)
         " let l:path_list = [l:path_list]
     " endif
 
-    echohl TabLineFill
-        \ | echo l:ref_name.' collecting.... '
-        \ | echohl None
+    call s:cm_echohl3( l:ref_name.' collecting.... ' )
 
     let l:include_path_list = []
     let l:knock_out_path_list = []
@@ -1253,7 +1260,7 @@ func! CsMgmtRebuild(line, pos)
     if len(l:all_file_list) == 0
         let l:msg =  'It is not finish to build cscope reference,'
             \ .  ' because no fidning any c or cpp file in ' . l:path_list
-        call s:echo_waring(l:msg)
+        call s:cm_echohl1(l:msg)
         return
     endif
 
@@ -1452,7 +1459,7 @@ func! CsMgmtOpenAllFile(line, pos)
     endif
 
     if s:cm_str_strip(a:line)[0] == s:ref_nonexist_token
-        call s:echo_waring("You have not built its cross-reference.")
+        call s:cm_echohl1("You have not built its cross-reference.")
         return
     endif
 
