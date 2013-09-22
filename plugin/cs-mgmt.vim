@@ -459,8 +459,8 @@ func! CsMgmtAdd(...) abort
         let l:db[l:ref_name] = [l:source_path]
     endif
 
-    call s:cm_json2file()
-    call s:cm_buf_refresh(line("."))
+    call s:cm_json_to_file()
+    call s:cm_mgmt_buf_refresh(line("."))
 endf
 
 func! CsMgmt() abort
@@ -468,7 +468,7 @@ func! CsMgmt() abort
         return
     endif
 
-    call s:cm_buf_show(s:cm_buf_view(s:cm_get_db()))
+    call s:cm_mgmt_buf_show(s:cm_buf_view(s:cm_get_db()))
 endf
 
 func! s:cm_buf_view(json)
@@ -679,11 +679,11 @@ func! s:cm_get_children_pos_list_from_buf(level, line, pos)
     while 1
         let l:pos += 1
         if s:cm_which_level_is_it(getline(l:pos)) > (l:level)
-                \ && s:cm_is_it_a_unexpect_line(getline(l:pos)) == 0
+                \ && s:cm_is_item_line(getline(l:pos)) == 0
             call insert(l:children_pos_list, l:pos, 0)
         endif
 
-        if s:cm_is_it_a_blank_line(getline(l:pos)) == 1
+        if s:cm_is_blank_line(getline(l:pos)) == 1
             break
         endif
     endwhile
@@ -721,7 +721,7 @@ func! s:cm_get_parent_list_from_buf(level, line, pos)
     return l:parent_list
 endf
 
-func! s:cm_is_it_a_comment(line)
+func! s:cm_is_comment_line(line)
     if a:line[0] == '"'
         return 1
     else
@@ -729,7 +729,7 @@ func! s:cm_is_it_a_comment(line)
     endif
 endf
 
-func! s:cm_is_it_a_group_title(line)
+func! s:cm_is_group_line(line)
     if a:line[-1:] == ':'
         return 1
     else
@@ -737,7 +737,7 @@ func! s:cm_is_it_a_group_title(line)
     endif
 endf
 
-func! s:cm_is_it_a_blank_line(line)
+func! s:cm_is_blank_line(line)
     if a:line == ''
         return 1
     else
@@ -745,10 +745,10 @@ func! s:cm_is_it_a_blank_line(line)
     endif
 endf
 
-func! s:cm_is_it_a_unexpect_line(line)
-    if   s:cm_is_it_a_blank_line(a:line)
-    \ || s:cm_is_it_a_group_title(a:line)
-    \ || s:cm_is_it_a_comment(a:line)
+func! s:cm_is_item_line(line)
+    if   s:cm_is_blank_line(a:line)
+    \ || s:cm_is_group_line(a:line)
+    \ || s:cm_is_comment_line(a:line)
         return 1
     else
         return 0
@@ -756,8 +756,8 @@ func! s:cm_is_it_a_unexpect_line(line)
 endf
 
 func! s:cm_is_item_n_grp(line)
-    if   s:cm_is_it_a_blank_line(a:line)
-    \ || s:cm_is_it_a_comment(a:line)
+    if   s:cm_is_blank_line(a:line)
+    \ || s:cm_is_comment_line(a:line)
         return 0
     else
         return 1
@@ -774,127 +774,8 @@ func! s:cm_get_readonly_mode()
     setl buftype=nofile
 endf
 
-func! CsMgmtAttachByGroup(line, pos)
-    call s:dfunc(printf("CsMgmtAttach(%s, %d) enter",
-                \ a:line, a:pos))
-    if s:cm_is_it_a_group_title(a:line) == 0
-        " echo 'it is a unexpect line'
-        return
-    endif
-
-    let l:level = s:cm_which_level_is_it(a:line)
-    let l:childre_pos_list = s:cm_get_children_pos_list_from_buf(l:level, a:line, a:pos)
-    for p in l:childre_pos_list
-        call CsMgmtAttach(getline(p), p)
-    endfor
-    call s:dret("CsMgmtAttachByGroup return")
-endf
-
-func! CsMgmtDetachByGroup(line, pos)
-    if s:cm_is_it_a_group_title(a:line) == 0
-        " echo 'it is a unexpect line'
-        return
-    endif
-
-    let l:level = s:cm_which_level_is_it(a:line)
-    let l:childre_pos_list = s:cm_get_children_pos_list_from_buf(l:level, a:line, a:pos)
-    for p in l:childre_pos_list
-        call CsMgmtDetach(getline(p), p)
-    endfor
-endf
-
-func! CsMgmtBuildByGroup(line, pos)
-    if s:cm_is_it_a_group_title(a:line) == 0
-        " echo 'it is a unexpect line'
-        return
-    endif
-
-    let l:level = s:cm_which_level_is_it(a:line)
-    let l:childre_pos_list = s:cm_get_children_pos_list_from_buf(l:level, a:line, a:pos)
-    for p in l:childre_pos_list
-        call CsMgmtBuild(getline(p), p)
-    endfor
-endf
-
-func! CsMgmtRebuildByGroup(line, pos)
-    if s:cm_is_it_a_group_title(a:line) == 0
-        " echo 'it is a unexpect line'
-        return
-    endif
-
-    let l:level = s:cm_which_level_is_it(a:line)
-    let l:childre_pos_list = s:cm_get_children_pos_list_from_buf(l:level, a:line, a:pos)
-    for p in l:childre_pos_list
-        call CsMgmtRebuild(getline(p), p)
-    endfor
-endf
-
-func! CsMgmtQuit(line, pos)
-    call s:dfunc(printf("CsMgmtQuit(%s, %d) enter",
-                \ a:line, a:pos))
-
-    if s:cm_futher_info_window_on
-        wincmd j | wincmd q | wincmd h
-    endif
-
-    exec 'silent bd!'
-    call s:dret("CsMgmtQuit return")
-endf
-
-func! CsMgmtAttach(line, pos)
-    call s:dfunc(printf("CsMgmtAttach(%s, %d) enter",
-                \ a:line, a:pos))
-
-    if s:cm_is_it_a_group_title(a:line) == 1
-        call CsMgmtAttachByGroup(a:line, a:pos)
-        call s:dret("CsMgmtAttach return")
-        return
-    endif
-
-    if s:cm_is_it_a_unexpect_line(a:line) == 1
-        " echo 'it is a unexpect line'
-        call s:decho("a unexpect line.")
-        call s:dret("CsMgmtAttach return")
-        return
-    endif
-
-    if s:cm_str_strip(a:line)[0] == s:ref_nonexist_token
-        call s:echo_waring("Hasn't build")
-        return
-    endif
-
-    let l:ref_level = s:cm_which_level_is_it(a:line)
-    let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
-    let l:ref_name = s:get_ref_item_name(a:line)
-
-    let l:ref_full_name = (len(l:parent_list) == 0) ?
-                \   (l:ref_name):
-                \   (join(l:parent_list, '_').'_'.l:ref_name)
-
-    if index(s:ref_attach_list, l:ref_full_name) != -1
-        " call s:echo_waring("Don\'t Attach Twice")
-        return
-    endif
-
-    " add to attach list
-    call add(s:ref_attach_list, l:ref_full_name)
-
-    " add a Attach word on the end of line
-    call s:cm_get_write_mode()
-    call setline(a:pos, a:line." Attach")
-    call s:cm_get_readonly_mode()
-
-    exec "cs add ".g:CsMgmtRefHome.l:ref_full_name.'.out'
-
-	" for ctags
-	if g:CsMgmtCtags == 1
-		call s:cm_add_tag_to_tags(g:CsMgmtRefHome . l:ref_full_name . '.tags')
-	endif
-    call s:dret("CsMgmtAttach return")
-endf
-
 func! s:cm_del_db(line, pos)
-    if s:cm_is_it_a_unexpect_line(a:line) == 1
+    if s:cm_is_item_line(a:line) == 1
         " echo 'it is a unexpect line'
         return
     endif
@@ -941,7 +822,7 @@ func! s:cm_del_db_by_group(line, pos)
         endif
 
         let l:line = getline(l:pos)
-        if s:cm_is_it_a_unexpect_line(l:line) == 0
+        if s:cm_is_item_line(l:line) == 0
             " echo l:line
             call s:cm_del_db(l:line, l:pos)
         endif
@@ -958,108 +839,6 @@ func! s:cm_del_db_by_group(line, pos)
 
     " delete
     unlet l:parent_key[l:ref_name]
-endf
-
-func! CsMgmtOpenAllFile(line, pos)
-
-    if s:cm_is_it_a_unexpect_line(a:line) == 1
-        " echo 'it is a unexpect line'
-        return
-    endif
-
-    if s:cm_str_strip(a:line)[0] == s:ref_nonexist_token
-        call s:echo_waring("You have not built its cross-reference.")
-        return
-    endif
-
-    " look for key of its full name.
-    let l:ref_level = s:cm_which_level_is_it(a:line)
-    let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
-    let l:ref_name = s:get_ref_item_name(a:line)
-    let l:all_file_list = []
-    let l:parent = (len(l:parent_list) == 0) ?
-                \   (''):
-                \   (join(l:parent_list, '_'))
-
-    let l:ref_full_name = (l:parent == '') ?
-                \   (l:ref_name):
-                \   (l:parent.'_'.l:ref_name)
-
-    let l:abs_path = g:CsMgmtRefHome . l:ref_full_name . ".files"
-    let l:file_list = readfile(l:abs_path)
-
-    " move to main buffer
-    wincmd l
-
-    " let l:time_s = localtime()
-
-    " open all file into buffer
-    for f in l:file_list
-        exec "edit " . f
-    endfor
-
-    " let l:elapsed = localtime() - l:time_s
-    " echo "Spend " . l:elapsed
-    "
-    " back to menu buffer
-    wincmd h
-
-endf
-
-func! CsMgmtDelete(line, pos)
-    if s:cm_is_it_a_unexpect_line(a:line) == 1
-        if s:cm_is_it_a_group_title(a:line) == 1
-            " delete a group
-            call s:cm_del_db_by_group(a:line, a:pos)
-            call s:cm_json2file()
-            call s:cm_buf_refresh(line("."))
-        endif
-    else
-        call s:cm_del_db(a:line, a:pos)
-        call s:cm_json2file()
-        call s:cm_buf_refresh(line("."))
-    endif
-endf
-
-func! CsMgmtDetach(line, pos)
-    if s:cm_is_it_a_group_title(a:line) == 1
-        call s:decho("Detach By Group: ".a:line)
-        call CsMgmtDetachByGroup(a:line, a:pos)
-        return
-    endif
-
-    if s:cm_is_it_a_unexpect_line(a:line) == 1
-        " echo 'it is a unexpect line'
-        return
-    endif
-
-    let l:ref_level = s:cm_which_level_is_it(a:line)
-    let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
-    let l:ref_name = s:get_ref_item_name(a:line)
-
-    let l:ref_full_name = (len(l:parent_list) == 0) ?
-                \   (l:ref_name):
-                \   (join(l:parent_list, '_').'_'.l:ref_name)
-
-    if index(s:ref_attach_list, l:ref_full_name) == -1
-        " call s:echo_waring("Need Attach Befor")
-        return
-    endif
-
-    " remove from attach list
-    call filter(s:ref_attach_list, 'v:val !~ "'.l:ref_full_name.'"')
-
-    " add a Attach word on the end of line
-    call s:cm_get_write_mode()
-    call setline(a:pos, a:line[0:-len(" Attach")-1])
-    call s:cm_get_readonly_mode()
-
-    exec "cs kill ".g:CsMgmtRefHome.l:ref_full_name.'.out'
-
-	" for ctags
-	if g:CsMgmtCtags == 1
-		call s:cm_del_tag_from_tags(g:CsMgmtRefHome . l:ref_full_name . '.tags')
-	endif
 endf
 
 func! s:cm_path_walk(path, all_file_list)
@@ -1082,7 +861,7 @@ func! s:cm_path_walk(path, all_file_list)
     call s:dret("cm_path_walk return")
 endf
 
-func! s:cm_db_cs_build(ref_name)
+func! s:cm_db_cscope_build(ref_name)
     let l:cmd_string = printf('cd %s && cscope -b -q -k -i%s.files -f%s.out',
             \ g:CsMgmtRefHome, a:ref_name, a:ref_name)
 
@@ -1120,14 +899,198 @@ func! s:cm_get_path_list_from_config(parent_list, ref_name)
     return l:config[a:ref_name]
 endf
 
-func! CsMgmtBuild(line, pos)
-    if s:cm_is_it_a_group_title(a:line) == 1
-        call s:decho("Build By Group: ".a:line)
-        call CsMgmtBuildByGroup(a:line, a:pos)
+let s:rvs_able_token = "!@!"
+func! s:cm_list_to_rvs_able_str(plist)
+    return join(a:plist, s:rvs_able_token)
+endf
+
+func! s:cm_rvs_able_to_list(str)
+    return split(a:str, s:rvs_able_token)
+endf
+
+func! s:cm_json_dip(indent_level, value)
+    for item in items(a:value)
+        let l:il = a:indent_level
+        let l:key = item[0]
+        unlet! l:value
+        let l:value = item[1]
+        let l:vt = type(l:value)
+
+        if l:vt == 1
+            call add(s:json2file_list,
+                        \   repeat(s:cm_indent_token, l:il) .
+                        \   "'" . l:key . "'" .
+                        \   " : " . "'" . l:value . "'," )
+
+        elseif l:vt == 3
+            call add(s:json2file_list,
+                    \ repeat(s:cm_indent_token, l:il) .
+                    \ "'" . l:key . "'" . " : " . "[")
+
+            let l:il += 1
+            for i in l:value
+                call add(s:json2file_list,
+                        \ repeat(s:cm_indent_token, l:il) .
+                        \ "'" . i . "',")
+            endfor
+            let l:il -= 1
+            call add(s:json2file_list, repeat(s:cm_indent_token, l:il) . "],")
+
+        elseif l:vt == 4
+            call add(s:json2file_list,
+                    \ repeat(s:cm_indent_token, l:il) .
+                    \ "'" . l:key . "'" . " : " . "{")
+
+            let l:il += 1
+            call s:cm_json_dip(l:il, l:value)
+            let l:il -= 1
+            call add(s:json2file_list, repeat(s:cm_indent_token, l:il) . "},")
+        endif
+    endfor
+endf
+
+func! s:cm_json_to_file()
+    let s:json2file_list = []
+    let l:indent_level = 0
+    let l:json = s:cm_get_db()
+
+    let l:indent_level += 1
+    call add(s:json2file_list, '{')
+    call s:cm_json_dip(l:indent_level, l:json)
+    call add(s:json2file_list, '}')
+    call writefile(s:json2file_list, g:CsMgmtDbFile)
+endf
+
+func! CsMgmtAttach(line, pos)
+    call s:dfunc(printf("CsMgmtAttach(%s, %d) enter",
+                \ a:line, a:pos))
+
+    if s:cm_is_group_line(a:line) == 1
+        call CsMgmtAttachGroup(a:line, a:pos)
+        call s:dret("CsMgmtAttach return")
         return
     endif
 
-    if s:cm_is_it_a_unexpect_line(a:line) == 1
+    if s:cm_is_item_line(a:line) == 1
+        " echo 'it is a unexpect line'
+        call s:decho("a unexpect line.")
+        call s:dret("CsMgmtAttach return")
+        return
+    endif
+
+    if s:cm_str_strip(a:line)[0] == s:ref_nonexist_token
+        call s:echo_waring("Hasn't build")
+        return
+    endif
+
+    let l:ref_level = s:cm_which_level_is_it(a:line)
+    let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
+    let l:ref_name = s:get_ref_item_name(a:line)
+
+    let l:ref_full_name = (len(l:parent_list) == 0) ?
+                \   (l:ref_name):
+                \   (join(l:parent_list, '_').'_'.l:ref_name)
+
+    if index(s:ref_attach_list, l:ref_full_name) != -1
+        " call s:echo_waring("Don\'t Attach Twice")
+        return
+    endif
+
+    " add to attach list
+    call add(s:ref_attach_list, l:ref_full_name)
+
+    " add a Attach word on the end of line
+    call s:cm_get_write_mode()
+    call setline(a:pos, a:line." Attach")
+    call s:cm_get_readonly_mode()
+
+    exec "cs add ".g:CsMgmtRefHome.l:ref_full_name.'.out'
+
+	" for ctags
+	if g:CsMgmtCtags == 1
+		call s:cm_add_tag_to_tags(g:CsMgmtRefHome . l:ref_full_name . '.tags')
+	endif
+    call s:dret("CsMgmtAttach return")
+endf
+
+func! CsMgmtAttachGroup(line, pos)
+    call s:dfunc(printf("CsMgmtAttach(%s, %d) enter",
+                \ a:line, a:pos))
+    if s:cm_is_group_line(a:line) == 0
+        " echo 'it is a unexpect line'
+        return
+    endif
+
+    let l:level = s:cm_which_level_is_it(a:line)
+    let l:childre_pos_list = s:cm_get_children_pos_list_from_buf(l:level, a:line, a:pos)
+    for p in l:childre_pos_list
+        call CsMgmtAttach(getline(p), p)
+    endfor
+    call s:dret("CsMgmtAttachGroup return")
+endf
+
+func! CsMgmtDetach(line, pos)
+    if s:cm_is_group_line(a:line) == 1
+        call s:decho("Detach By Group: ".a:line)
+        call CsMgmtDetachGroup(a:line, a:pos)
+        return
+    endif
+
+    if s:cm_is_item_line(a:line) == 1
+        " echo 'it is a unexpect line'
+        return
+    endif
+
+    let l:ref_level = s:cm_which_level_is_it(a:line)
+    let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
+    let l:ref_name = s:get_ref_item_name(a:line)
+
+    let l:ref_full_name = (len(l:parent_list) == 0) ?
+                \   (l:ref_name):
+                \   (join(l:parent_list, '_').'_'.l:ref_name)
+
+    if index(s:ref_attach_list, l:ref_full_name) == -1
+        " call s:echo_waring("Need Attach Befor")
+        return
+    endif
+
+    " remove from attach list
+    call filter(s:ref_attach_list, 'v:val !~ "'.l:ref_full_name.'"')
+
+    " add a Attach word on the end of line
+    call s:cm_get_write_mode()
+    call setline(a:pos, a:line[0:-len(" Attach")-1])
+    call s:cm_get_readonly_mode()
+
+    exec "cs kill ".g:CsMgmtRefHome.l:ref_full_name.'.out'
+
+	" for ctags
+	if g:CsMgmtCtags == 1
+		call s:cm_del_tag_from_tags(g:CsMgmtRefHome . l:ref_full_name . '.tags')
+	endif
+endf
+
+func! CsMgmtDetachGroup(line, pos)
+    if s:cm_is_group_line(a:line) == 0
+        " echo 'it is a unexpect line'
+        return
+    endif
+
+    let l:level = s:cm_which_level_is_it(a:line)
+    let l:childre_pos_list = s:cm_get_children_pos_list_from_buf(l:level, a:line, a:pos)
+    for p in l:childre_pos_list
+        call CsMgmtDetach(getline(p), p)
+    endfor
+endf
+
+func! CsMgmtBuild(line, pos)
+    if s:cm_is_group_line(a:line) == 1
+        call s:decho("Build By Group: ".a:line)
+        call CsMgmtBuildGroup(a:line, a:pos)
+        return
+    endif
+
+    if s:cm_is_item_line(a:line) == 1
         " echo 'it is a unexpect line'
         return
     endif
@@ -1193,7 +1156,7 @@ func! CsMgmtBuild(line, pos)
     call writefile(l:all_file_list, g:CsMgmtRefHome.l:ref_full_name.'.files')
 
     " real build for cscope
-    call s:cm_db_cs_build(l:ref_full_name)
+    call s:cm_db_cscope_build(l:ref_full_name)
 
     " real build for ctags
 	if g:CsMgmtCtags == 1
@@ -1207,16 +1170,29 @@ func! CsMgmtBuild(line, pos)
     call s:cm_get_readonly_mode()
 endf
 
-func! CsMgmtRebuild(line, pos)
-    call s:dfunc(printf("CsMgmtRebuild(%s, %s) enter",
-                \ string(a:line), string(a:pos)))
-    if s:cm_is_it_a_group_title(a:line) == 1
-        call s:decho("Rebuild By Group: ".a:line)
-        call CsMgmtRebuildByGroup(a:line, a:pos)
+func! CsMgmtBuildGroup(line, pos)
+    if s:cm_is_group_line(a:line) == 0
+        " echo 'it is a unexpect line'
         return
     endif
 
-    if s:cm_is_it_a_unexpect_line(a:line) == 1
+    let l:level = s:cm_which_level_is_it(a:line)
+    let l:childre_pos_list = s:cm_get_children_pos_list_from_buf(l:level, a:line, a:pos)
+    for p in l:childre_pos_list
+        call CsMgmtBuild(getline(p), p)
+    endfor
+endf
+
+func! CsMgmtRebuild(line, pos)
+    call s:dfunc(printf("CsMgmtRebuild(%s, %s) enter",
+                \ string(a:line), string(a:pos)))
+    if s:cm_is_group_line(a:line) == 1
+        call s:decho("Rebuild By Group: ".a:line)
+        call CsMgmtRebuildGroup(a:line, a:pos)
+        return
+    endif
+
+    if s:cm_is_item_line(a:line) == 1
         " echo 'it is a unexpect line'
         return
     endif
@@ -1285,7 +1261,7 @@ func! CsMgmtRebuild(line, pos)
     call writefile(l:all_file_list, g:CsMgmtRefHome.l:ref_full_name.'.files')
 
     " real build for cscope
-    call s:cm_db_cs_build(l:ref_full_name)
+    call s:cm_db_cscope_build(l:ref_full_name)
 
     " real build for ctags
 	if g:CsMgmtCtags == 1
@@ -1305,13 +1281,17 @@ func! CsMgmtRebuild(line, pos)
     call s:dret("CsMgmtRebuild return")
 endf
 
-let s:rvs_able_token = "!@!"
-func! s:cm_list_to_rvs_able_str(plist)
-    return join(a:plist, s:rvs_able_token)
-endf
+func! CsMgmtRebuildGroup(line, pos)
+    if s:cm_is_group_line(a:line) == 0
+        " echo 'it is a unexpect line'
+        return
+    endif
 
-func! s:cm_rvs_able_to_list(str)
-    return split(a:str, s:rvs_able_token)
+    let l:level = s:cm_which_level_is_it(a:line)
+    let l:childre_pos_list = s:cm_get_children_pos_list_from_buf(l:level, a:line, a:pos)
+    for p in l:childre_pos_list
+        call CsMgmtRebuild(getline(p), p)
+    endfor
 endf
 
 let s:cm_edit_prev_bufnr = 0
@@ -1324,7 +1304,7 @@ func! CsMgmtEdit(line, pos)
 
     let l:ref_level = s:cm_which_level_is_it(a:line)
     let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
-    if s:cm_is_it_a_group_title(a:line) == 1
+    if s:cm_is_group_line(a:line) == 1
         let l:ref_name = s:cm_str_strip(a:line)[:-2]
     else
         let l:ref_name = s:get_ref_item_name(a:line)
@@ -1383,11 +1363,38 @@ func! CsMgmtEdit(line, pos)
 
 endf
 
-let s:cm_futher_info_window_on=0
+func! CsMgmtDelete(line, pos)
+    if s:cm_is_item_line(a:line) == 1
+        if s:cm_is_group_line(a:line) == 1
+            " delete a group
+            call s:cm_del_db_by_group(a:line, a:pos)
+            call s:cm_json_to_file()
+            call s:cm_mgmt_buf_refresh(line("."))
+        endif
+    else
+        call s:cm_del_db(a:line, a:pos)
+        call s:cm_json_to_file()
+        call s:cm_mgmt_buf_refresh(line("."))
+    endif
+endf
+
+func! CsMgmtQuit(line, pos)
+    call s:dfunc(printf("CsMgmtQuit(%s, %d) enter",
+                \ a:line, a:pos))
+
+    if s:cm_futher_info_buf_on
+        wincmd j | wincmd q | wincmd h
+    endif
+
+    exec 'silent bd!'
+    call s:dret("CsMgmtQuit return")
+endf
+
+let s:cm_futher_info_buf_on=0
 func! CsMgmtFurtherInfo(line, pos)
     call s:dfunc(printf("CsMgmtFurtherInfo(%s, %d) enter",
                 \ a:line, a:pos))
-    if s:cm_is_it_a_unexpect_line(a:line) == 1
+    if s:cm_is_item_line(a:line) == 1
         " echo 'it is a unexpect line'
         call s:decho("a unexpect line.")
         call s:dret("CsMgmtFurtherInfo return")
@@ -1412,15 +1419,15 @@ func! CsMgmtFurtherInfo(line, pos)
     call s:decho("parent_list: " . string(l:parent_list))
     call s:decho("parent: " . l:parent)
 
-    if s:cm_futher_info_window_on == 1
+    if s:cm_futher_info_buf_on == 1
         " closing further infor window
         wincmd j | wincmd q | wincmd h
-        let s:cm_futher_info_window_on = 0
+        let s:cm_futher_info_buf_on = 0
     endif
 
     wincmd s | wincmd r
 
-    let s:cm_futher_info_window_on=1
+    let s:cm_futher_info_buf_on=1
     exec 'silent edit ' . tempname()
     setl ft=vim
     setl buftype=nofile
@@ -1434,94 +1441,56 @@ func! CsMgmtFurtherInfo(line, pos)
     exec 'resize 10'
     wincmd k
 
-    " let l:db= s:cm_get_db()
-    " let l:item = {}
-    " no parent, if it is stay in top level
-    " if l:ref_level
-        " for i in l:parent_list
-            " let l:db= l:db[i]
-        " endfor
-    " endif
-
-    " let l:item[l:ref_name] = l:db[l:ref_name]
-    " call s:decho(l:item)
-
-    " let l:tmp = l:parent_list
-    " let l:edit_bufn = s:cm_list_to_rvs_able_str(insert(l:tmp, tempname(), 0)) . '.cs-mgmt-edit'
-    " call s:decho("edit_bufn: " .  l:edit_bufn)
-
-    " wincmd l
-
-    " exec 'silent edit ' . l:edit_bufn
-
-
-    " let s:json2file_list = []
-
-    " call add(s:json2file_list, '{')
-    " call s:cm_json_dip(1, l:item)
-    " call add(s:json2file_list, '}')
-
-    " for i in s:json2file_list
-        " call append(line('$')-1, i)
-    " endfor
-
     call s:dret("CsMgmtFurtherInfo return")
 endf
 
-func! s:cm_json_dip(indent_level, value)
-    for item in items(a:value)
-        let l:il = a:indent_level
-        let l:key = item[0]
-        unlet! l:value
-        let l:value = item[1]
-        let l:vt = type(l:value)
+func! CsMgmtOpenAllFile(line, pos)
 
-        if l:vt == 1
-            call add(s:json2file_list,
-                        \   repeat(s:cm_indent_token, l:il) .
-                        \   "'" . l:key . "'" .
-                        \   " : " . "'" . l:value . "'," )
+    if s:cm_is_item_line(a:line) == 1
+        " echo 'it is a unexpect line'
+        return
+    endif
 
-        elseif l:vt == 3
-            call add(s:json2file_list,
-                    \ repeat(s:cm_indent_token, l:il) .
-                    \ "'" . l:key . "'" . " : " . "[")
+    if s:cm_str_strip(a:line)[0] == s:ref_nonexist_token
+        call s:echo_waring("You have not built its cross-reference.")
+        return
+    endif
 
-            let l:il += 1
-            for i in l:value
-                call add(s:json2file_list,
-                        \ repeat(s:cm_indent_token, l:il) .
-                        \ "'" . i . "',")
-            endfor
-            let l:il -= 1
-            call add(s:json2file_list, repeat(s:cm_indent_token, l:il) . "],")
+    " look for key of its full name.
+    let l:ref_level = s:cm_which_level_is_it(a:line)
+    let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
+    let l:ref_name = s:get_ref_item_name(a:line)
+    let l:all_file_list = []
+    let l:parent = (len(l:parent_list) == 0) ?
+                \   (''):
+                \   (join(l:parent_list, '_'))
 
-        elseif l:vt == 4
-            call add(s:json2file_list,
-                    \ repeat(s:cm_indent_token, l:il) .
-                    \ "'" . l:key . "'" . " : " . "{")
+    let l:ref_full_name = (l:parent == '') ?
+                \   (l:ref_name):
+                \   (l:parent.'_'.l:ref_name)
 
-            let l:il += 1
-            call s:cm_json_dip(l:il, l:value)
-            let l:il -= 1
-            call add(s:json2file_list, repeat(s:cm_indent_token, l:il) . "},")
-        endif
+    let l:abs_path = g:CsMgmtRefHome . l:ref_full_name . ".files"
+    let l:file_list = readfile(l:abs_path)
+
+    " move to main buffer
+    wincmd l
+
+    " let l:time_s = localtime()
+
+    " open all file into buffer
+    for f in l:file_list
+        exec "edit " . f
     endfor
+
+    " let l:elapsed = localtime() - l:time_s
+    " echo "Spend " . l:elapsed
+    "
+    " back to menu buffer
+    wincmd h
+
 endf
 
-func! s:cm_json2file()
-    let s:json2file_list = []
-    let l:indent_level = 0
-    let l:json = s:cm_get_db()
-
-    let l:indent_level += 1
-    call add(s:json2file_list, '{')
-    call s:cm_json_dip(l:indent_level, l:json)
-    call add(s:json2file_list, '}')
-    call writefile(s:json2file_list, g:CsMgmtDbFile)
-endf
-
-func! s:cm_buf_color()
+func! s:cm_mgmt_buf_theme()
     hi cm_ref_grp_name ctermfg=cyan guifg=cyan
     call matchadd('cm_ref_grp_name', '^\s\{}\([0-9a-zA-Z\-._~]*\):')
 
@@ -1541,23 +1510,23 @@ func! s:cm_buf_color()
     call matchadd('cm_ref_item_status_nonexist', '^\s\{}' . s:ref_nonexist_token, 99)
 endf
 
-func! s:cm_buf_refresh(line)
+func! s:cm_mgmt_buf_refresh(line)
     if exists('g:cm_view') && buflisted(g:cm_view)
         " if it isn't on cm_view, closing buf then reopen.
         if g:cm_view != bufnr('%')
-            call s:cm_buf_show(s:cm_buf_view(s:cm_get_db()))
+            call s:cm_mgmt_buf_show(s:cm_buf_view(s:cm_get_db()))
             wincmd l
         else
             call s:cm_get_write_mode()
 
             " delete all line in buffer
-            let l:header_size = len(s:header) + 2
+            let l:header_size = len(s:cs_mgmt_buf_hdr) + 2
             exec "silent" . l:header_size. ",$d"
 
             " update buffer
             for i in s:cm_buf_view(s:cm_get_db())
                 if s:cm_which_level_is_it(i) == 0
-                    if line('$') != len(s:header) + 1
+                    if line('$') != len(s:cs_mgmt_buf_hdr) + 1
                         call append(line('$'), '')
                     endif
                 endif
@@ -1573,19 +1542,20 @@ func! s:cm_buf_refresh(line)
     endif
 endf
 
-let s:header = ['" +-------------- Key Map ---------------+',
-              \ '" | Press a: to aetach                   |',
-              \ '" | Press d: to detach                   |',
-              \ '" | Press b: to build db                 |',
-              \ '" | Press r: to rebuild db               |',
-              \ '" | Press e: edit this configuration     |',
-              \ '" | Press E: edit entire configuration   |',
-              \ '" |--------------------------------------|',
-              \ '" | Press dd: delete a entry from menu   |',
-              \ '" | Press oo: open all file at one time  |',
-              \ '" +--------------------------------------+']
+let s:cs_mgmt_buf_hdr = ['" +-------------- Key Map ---------------+',
+                       \ '" | Press a: to aetach                   |',
+                       \ '" | Press d: to detach                   |',
+                       \ '" | Press b: to build db                 |',
+                       \ '" | Press r: to rebuild db               |',
+                       \ '" | Press e: edit this configuration     |',
+                       \ '" |--------------------------------------|',
+                       \ '" | Press dd: delete a item from menu    |',
+                       \ '" | Press q: quit                        |',
+                       \ '" |--------------------------------------|',
+                       \ '" | Press oo: open all files at one time |',
+                       \ '" +--------------------------------------+']
 
-func! s:cm_buf_show(content)
+func! s:cm_mgmt_buf_show(content)
     if exists('g:cm_view') && bufloaded(g:cm_view)
         exec g:cm_view.'bd!'
     endif
@@ -1597,13 +1567,13 @@ func! s:cm_buf_show(content)
 
     let g:cm_view = bufnr('%')
     " TODO: refactory
-    " call cm_buf_refresh(a:content)
-    call append(0, s:header)
+    " call cm_mgmt_buf_refresh(a:content)
+    call append(0, s:cs_mgmt_buf_hdr)
 
     for i in a:content
         call s:decho(string(s:cm_which_level_is_it(i)).": ".i)
         if s:cm_which_level_is_it(i) == 0
-            if line('$') != len(s:header) + 1
+            if line('$') != len(s:cs_mgmt_buf_hdr) + 1
                 call append(line('$'), '')
             endif
             " call s:decho(i)
@@ -1622,177 +1592,7 @@ func! s:cm_buf_show(content)
 
     setl ft=vim
 
-    let s:json2file_list = []
-    let l:indent_level = 1
-    let l:json = l:item
-
-    call add(s:json2file_list, '{')
-    call s:cm_json_dip(l:indent_level, l:json)
-    call add(s:json2file_list, '}')
-
-    for i in s:json2file_list
-        call append(line('$'), i)
-    endfor
-
-endf
-
-
-func! s:cm_json_dip(indent_level, value)
-    for item in items(a:value)
-        let l:il = a:indent_level
-        let l:key = item[0]
-        unlet! l:value
-        let l:value = item[1]
-        let l:vt = type(l:value)
-
-        if l:vt == 1
-            call add(s:json2file_list,
-                        \   repeat(s:cm_indent_token, l:il) .
-                        \   "'" . l:key . "'" .
-                        \   " : " . "'" . l:value . "'," )
-
-        elseif l:vt == 3
-            call add(s:json2file_list,
-                    \ repeat(s:cm_indent_token, l:il) .
-                    \ "'" . l:key . "'" . " : " . "[")
-
-            let l:il += 1
-            for i in l:value
-                call add(s:json2file_list,
-                        \ repeat(s:cm_indent_token, l:il) .
-                        \ "'" . i . "',")
-            endfor
-            let l:il -= 1
-            call add(s:json2file_list, repeat(s:cm_indent_token, l:il) . "],")
-
-        elseif l:vt == 4
-            call add(s:json2file_list,
-                    \ repeat(s:cm_indent_token, l:il) .
-                    \ "'" . l:key . "'" . " : " . "{")
-
-            let l:il += 1
-            call s:cm_json_dip(l:il, l:value)
-            let l:il -= 1
-            call add(s:json2file_list, repeat(s:cm_indent_token, l:il) . "},")
-        endif
-    endfor
-endf
-
-func! s:cm_json2file()
-    let s:json2file_list = []
-    let l:indent_level = 0
-    let l:json = s:cm_get_db()
-
-    let l:indent_level += 1
-    call add(s:json2file_list, '{')
-    call s:cm_json_dip(l:indent_level, l:json)
-    call add(s:json2file_list, '}')
-    call writefile(s:json2file_list, g:CsMgmtDbFile)
-endf
-
-func! s:cm_buf_color()
-    hi cm_ref_grp_name ctermfg=cyan guifg=cyan
-    call matchadd('cm_ref_grp_name', '^\s\{}\([0-9a-zA-Z\-._~]*\):')
-
-    hi cm_ref_name ctermfg=yellow guifg=yellow
-    call matchadd('cm_ref_name', '^\s\{}[OX]\s\(.*\)$')
-
-    hi cm_timestamp ctermfg=darkgreen guifg=darkgreen
-    call matchadd('cm_timestamp', '\d\{2}/\d\{2}/\d\{2}\s\d\{2}\:\d\{2}')
-
-    hi cm_ref_attach ctermfg=darkblue guifg=darkblue
-    call matchadd('cm_ref_attach', '\ Attach$')
-
-    hi cm_ref_item_status_exist ctermfg=blue guifg=blue
-    call matchadd('cm_ref_item_status_exist', '^\s\{}' . s:ref_exist_token, 99)
-
-    hi cm_ref_item_status_nonexist ctermfg=red guifg=red
-    call matchadd('cm_ref_item_status_nonexist', '^\s\{}' . s:ref_nonexist_token, 99)
-endf
-
-func! s:cm_buf_refresh(line)
-    if exists('g:cm_view') && buflisted(g:cm_view)
-        " if it isn't on cm_view, closing buf then reopen.
-        if g:cm_view != bufnr('%')
-            call s:cm_buf_show(s:cm_buf_view(s:cm_get_db()))
-            wincmd l
-        else
-            call s:cm_get_write_mode()
-
-            " delete all line in buffer
-            let l:header_size = len(s:header) + 2
-            exec "silent" . l:header_size. ",$d"
-
-            " update buffer
-            for i in s:cm_buf_view(s:cm_get_db())
-                if s:cm_which_level_is_it(i) == 0
-                    if line('$') != len(s:header) + 1
-                        call append(line('$'), '')
-                    endif
-                endif
-                call append(line('$'), i)
-            endfor
-
-            call s:cm_get_readonly_mode()
-        endif
-
-        if a:line
-            exec ':' . a:line
-        endif
-    endif
-endf
-
-let s:header = ['" +-------------- Key Map ---------------+',
-              \ '" | Press a: to aetach                   |',
-              \ '" | Press d: to detach                   |',
-              \ '" | Press b: to build db                 |',
-              \ '" | Press r: to rebuild db               |',
-              \ '" | Press e: edit this configuration     |',
-              \ '" |--------------------------------------|',
-              \ '" | Press dd: delete a item from menu    |',
-              \ '" | Press q: quit                        |',
-              \ '" |--------------------------------------|',
-              \ '" | Press oo: open all files at one time |',
-              \ '" +--------------------------------------+']
-
-func! s:cm_buf_show(content)
-    if exists('g:cm_view') && bufloaded(g:cm_view)
-        exec g:cm_view.'bd!'
-    endif
-
-    let l:pwd = getcwd()
-    exec 'silent pedit ' . tempname()
-
-    wincmd P | wincmd H
-
-    let g:cm_view = bufnr('%')
-    " TODO: refactory
-    " call cm_buf_refresh(a:content)
-    call append(0, s:header)
-
-    for i in a:content
-        call s:decho(string(s:cm_which_level_is_it(i)).": ".i)
-        if s:cm_which_level_is_it(i) == 0
-            if line('$') != len(s:header) + 1
-                call append(line('$'), '')
-            endif
-            " call s:decho(i)
-        endif
-        call append(line('$'), i)
-    endfor
-   " call append(len(l:header)+1, a:content)
-
-    setl buftype=nofile
-    setl noswapfile
-
-    setl cursorline
-    setl nonu ro noma ignorecase
-
-    exec 'vertical resize 44'
-
-    setl ft=vim
-
-    call s:cm_buf_color()
+    call s:cm_mgmt_buf_theme()
 
     nnoremap <silent> <buffer> q :call CsMgmtQuit(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <silent> <buffer> a :call CsMgmtAttach(printf("%s", getline('.')), line('.'))<CR>
@@ -1809,7 +1609,7 @@ func! s:cm_buf_show(content)
     " open all file at one time
     nnoremap <silent> <buffer> oo :call CsMgmtOpenAllFile(printf("%s", getline('.')), line('.'))<CR>
 
-    exec ':'.(len(s:header) + 2)
+    exec ':'.(len(s:cs_mgmt_buf_hdr) + 2)
     redraw!
 
     " Its working directory will be changed to tmpename directory, rolling back
@@ -1839,7 +1639,7 @@ augroup CsMgmtEditAutoCmd
             \|  call add(s:json2file_list, '}')
             \|  call s:decho(s:json2file_list)
             \|  call writefile(s:json2file_list, g:CsMgmtDbFile)
-            \|  call s:cm_buf_refresh(line("."))
+            \|  call s:cm_mgmt_buf_refresh(line("."))
 augroup END
 
 command! -nargs=* -complete=dir Csmgmtadd call CsMgmtAdd(<f-args>)
