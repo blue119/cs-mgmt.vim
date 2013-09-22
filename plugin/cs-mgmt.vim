@@ -118,10 +118,11 @@ endif
 " }
 let s:cm_engines = {}
 func! s:cm_engines_register(engine, cmd)
-    call s:dfunc(printf("cm_engines_register(%s, %s) enter", a:engine, a:cmd))
+    call s:dfunc("cm_engines_register")
+    call s:decho(printf("args: (%s, %s)", a:engine, a:cmd))
     let s:cm_engines[a:engine] = {'cmd': a:cmd}
     call s:decho(s:cm_engines)
-    call s:dret("cm_engines_register return")
+    call s:dret("cm_engines_register")
 endfunc
 
 " the lang's structure
@@ -131,10 +132,11 @@ endfunc
 " }
 "
 func! s:cm_engines_set_langs(engine, langs)
-    call s:dfunc(printf("cm_engines_set_langs(%s, %s) enter", a:engine, string(a:langs)))
+    call s:dfunc("cm_engines_set_langs")
+    call s:decho(printf("args: (%s, %s)", a:engine, string(a:langs)))
     let s:cm_engines[a:engine]['langs'] = a:langs
     call s:decho(s:cm_engines[a:engine])
-    call s:dret("cm_engines_set_langs return")
+    call s:dret("cm_engines_set_langs")
 endfunc
 
 " g:CsMgmtCscopeDisable
@@ -206,18 +208,20 @@ endif
 
 
 " Ctags's Function"{{{
-func! s:cm_add_tag_to_tags(tag)
+func! s:cm_ctags_attach(db)
+    let l:tag = a:db . ".tags"
 	if &tags == ""
 		exec printf("set tags=%s", l:new_tags)
 	else
-		exec printf("set tags=%s,%s", &tags, a:tag)
+		exec printf("set tags=%s,%s", &tags, l:tag)
 	endif
 endf
 
-func! s:cm_del_tag_from_tags(tag)
+func! s:cm_ctags_detach(db)
+    let l:tag = a:db . ".tags"
 	let l:new_tags = ""
 	for t in split(&tags, ",")
-		if t != a:tag
+		if t != l:tag
 			if l:new_tags == ""
 				let l:new_tags = t
 			else
@@ -228,7 +232,7 @@ func! s:cm_del_tag_from_tags(tag)
 	exec printf("set tags=%s", l:new_tags)
 endf
 
-func! s:cm_db_ctags_build(ref_name)
+func! s:cm_ctags_db_build(ref_name)
     let l:cmd_string = printf('cd %s && ctags -L %s.files -f %s.tags',
             \ g:CsMgmtDbHome, a:ref_name, a:ref_name)
 
@@ -236,10 +240,22 @@ func! s:cm_db_ctags_build(ref_name)
     call system(l:cmd_string)
     call s:cm_echohl4( a:ref_name.' built success.' )
 endf
+
+func! s:cm_ctags_db_rm(db)
+    call delete(a:db . '.tags')
+endf
 "}}}
 
 " Cscoope's Function"{{{
-func! s:cm_db_cscope_build(ref_name)
+func! s:cm_cscope_attach(db)
+	exec printf("cs add %s.out", a:db)
+endf
+
+func! s:cm_cscope_detach(db)
+	exec printf("cs kill %s.out", a:db)
+endf
+
+func! s:cm_cscope_db_build(ref_name)
     let l:cmd_string = printf('cd %s && cscope -b -q -k -i%s.files -f%s.out',
             \ g:CsMgmtDbHome, a:ref_name, a:ref_name)
 
@@ -247,19 +263,15 @@ func! s:cm_db_cscope_build(ref_name)
     call system(l:cmd_string)
     call s:cm_echohl4( a:ref_name.' built success.' )
 endf
+
+func! s:cm_cscope_db_rm(db)
+	let l:suffixs = ['.files', '.out', '.out.in', '.out.po']
+
+    for suffix in l:suffixs
+        call delete(a:db . suffix)
+    endfor
+endf
 " }}}
-
-
-
-
-
-
-
-
-
-
-
-
 
 " core utils"{{{
 func! s:cm_get_src_from_file(path)
@@ -348,7 +360,7 @@ endf
 
 " to verify the name conflict of grouping path in CsMgmtDb
 " return [g_parent, g_name]
-func! s:parser_group_name(group)
+func! s:cm_grp_chk_n_split(group)
     " to check reserved words in g_name excepting '/' word, and
     " reduce the repeating '/' to onece.
     let l:g_name = []
@@ -472,7 +484,7 @@ func! s:cm_item_name_get(line)
     return substitute(l:l, l:re, '\3', '')
 endf
 
-func! s:get_ref_item_timestamp(line)
+func! s:cm_item_timestamp_get(line)
     let l:re = s:cm_re_get(a:line)
     let l:l = matchstr(a:line, l:re)
     return substitute(l:l, l:re, '\4', '')
@@ -574,7 +586,7 @@ func! s:cm_children_pos_list_on_buf_get(level, line, pos)
     while 1
         let l:pos += 1
         if s:cm_item_level_get(getline(l:pos)) > (l:level)
-                \ && s:cm_is_item_line(getline(l:pos)) == 0
+                \ && s:cm_is_not_item_line(getline(l:pos)) == 0
             call insert(l:children_pos_list, l:pos, 0)
         endif
 
@@ -624,7 +636,7 @@ func! s:cm_is_comment_line(line)
     endif
 endf
 
-func! s:cm_is_group_line(line)
+func! s:cm_is_grp_line(line)
     if a:line[-1:] == ':'
         return 1
     else
@@ -640,9 +652,9 @@ func! s:cm_is_blank_line(line)
     endif
 endf
 
-func! s:cm_is_item_line(line)
+func! s:cm_is_not_item_line(line)
     if   s:cm_is_blank_line(a:line)
-    \ || s:cm_is_group_line(a:line)
+    \ || s:cm_is_grp_line(a:line)
     \ || s:cm_is_comment_line(a:line)
         return 1
     else
@@ -670,7 +682,7 @@ func! s:cm_buf_readonly_mode_set()
 endf
 
 func! s:cm_db_rm(line, pos)
-    if s:cm_is_item_line(a:line) == 1
+    if s:cm_is_not_item_line(a:line) == 1
         " echo 'it is a unexpect line'
         return
     endif
@@ -690,21 +702,17 @@ func! s:cm_db_rm(line, pos)
         endfor
     endif
 
-	let l:suffixs = ['.files', '.out', '.out.in', '.out.po']
+    call s:cm_cscope_db_rm(g:CsMgmtDbHome . l:ref_name)
 
 	if g:CsMgmtCtags == 1
-		call add(l:suffixs, '.tags')
-	endif
-
-    for suffix in l:suffixs
-        call delete(g:CsMgmtDbHome . l:ref_name . suffix)
-    endfor
+        call s:cm_ctags_db_rm(g:CsMgmtDbHome . l:ref_name)
+    endif
 
     " delete
     unlet l:parent_key[l:ref_name]
 endf
 
-func! s:cm_db_group_rm(line, pos)
+func! s:cm_db_grp_rm(line, pos)
     " find childrens
     let l:level = s:cm_item_level_get(a:line)
     let l:ref_name = s:cm_str_strip(getline(a:pos))[:-2]
@@ -717,7 +725,7 @@ func! s:cm_db_group_rm(line, pos)
         endif
 
         let l:line = getline(l:pos)
-        if s:cm_is_item_line(l:line) == 0
+        if s:cm_is_not_item_line(l:line) == 0
             " echo l:line
             call s:cm_db_rm(l:line, l:pos)
         endif
@@ -737,7 +745,9 @@ func! s:cm_db_group_rm(line, pos)
 endf
 
 func! s:cm_path_walk(path, all_file_list)
-    call s:dfunc(printf("cm_path_walk(%s) enter", a:path))
+    call s:dfunc("cm_path_walk")
+    call s:decho(a:path)
+
     let l:file_list = split(globpath(a:path, '*'), '\n')
     for file in l:file_list
         if isdirectory(file)
@@ -753,7 +763,7 @@ func! s:cm_path_walk(path, all_file_list)
             endif
         endif
     endfor
-    call s:dret("cm_path_walk return")
+    call s:dret("cm_path_walk")
 endf
 
 func! s:cm_path_list_on_conf_get(parent_list, ref_name)
@@ -837,19 +847,20 @@ endf
 
 
 func! CsMgmtAttach(line, pos)
-    call s:dfunc(printf("CsMgmtAttach(%s, %d) enter",
-                \ a:line, a:pos))
+    call s:dfunc("CsMgmtAttach")
+    call s:decho(printf("args: (%s, %d)", a:line, a:pos))
 
-    if s:cm_is_group_line(a:line) == 1
-        call CsMgmtAttachGroup(a:line, a:pos)
-        call s:dret("CsMgmtAttach return")
+    if s:cm_is_grp_line(a:line) == 1
+        call s:decho("a grp line.")
+        call s:CsMgmtAttachGrp(a:line, a:pos)
+        call s:dret("CsMgmtAttach")
         return
     endif
 
-    if s:cm_is_item_line(a:line) == 1
+    if s:cm_is_not_item_line(a:line) == 1
         " echo 'it is a unexpect line'
         call s:decho("a unexpect line.")
-        call s:dret("CsMgmtAttach return")
+        call s:dret("CsMgmtAttach")
         return
     endif
 
@@ -879,20 +890,23 @@ func! CsMgmtAttach(line, pos)
     call setline(a:pos, a:line." Attach")
     call s:cm_buf_readonly_mode_set()
 
-    exec "cs add ".g:CsMgmtDbHome.l:ref_full_name.'.out'
+	call s:cm_cscope_attach(g:CsMgmtDbHome . l:ref_full_name)
 
 	" for ctags
 	if g:CsMgmtCtags == 1
-		call s:cm_add_tag_to_tags(g:CsMgmtDbHome . l:ref_full_name . '.tags')
+		call s:cm_ctags_attach(g:CsMgmtDbHome . l:ref_full_name)
 	endif
-    call s:dret("CsMgmtAttach return")
+    call s:dret("CsMgmtAttach")
 endf
 
-func! CsMgmtAttachGroup(line, pos)
-    call s:dfunc(printf("CsMgmtAttach(%s, %d) enter",
-                \ a:line, a:pos))
-    if s:cm_is_group_line(a:line) == 0
+func! s:CsMgmtAttachGrp(line, pos)
+    call s:dfunc("CsMgmtAttachGrp")
+    call s:decho(printf("args: (%s, %d)", a:line, a:pos))
+
+    if s:cm_is_grp_line(a:line) == 0
         " echo 'it is a unexpect line'
+        call s:decho("is not grp line")
+        call s:dret("CsMgmtAttachGrp")
         return
     endif
 
@@ -901,18 +915,22 @@ func! CsMgmtAttachGroup(line, pos)
     for p in l:childre_pos_list
         call CsMgmtAttach(getline(p), p)
     endfor
-    call s:dret("CsMgmtAttachGroup return")
+    call s:dret("CsMgmtAttachGrp")
 endf
 
 func! CsMgmtDetach(line, pos)
-    if s:cm_is_group_line(a:line) == 1
-        call s:decho("Detach By Group: ".a:line)
-        call CsMgmtDetachGroup(a:line, a:pos)
+    call s:dfunc("CsMgmtDetach")
+    call s:decho(printf("args: (%s, %d)", a:line, a:pos))
+
+    if s:cm_is_grp_line(a:line) == 1
+        call s:CsMgmtDetachGrp(a:line, a:pos)
+        call s:dret("CsMgmtDetach")
         return
     endif
 
-    if s:cm_is_item_line(a:line) == 1
+    if s:cm_is_not_item_line(a:line) == 1
         " echo 'it is a unexpect line'
+        call s:dret("CsMgmtDetach")
         return
     endif
 
@@ -937,17 +955,22 @@ func! CsMgmtDetach(line, pos)
     call setline(a:pos, a:line[0:-len(" Attach")-1])
     call s:cm_buf_readonly_mode_set()
 
-    exec "cs kill ".g:CsMgmtDbHome.l:ref_full_name.'.out'
+	call s:cm_cscope_detach(g:CsMgmtDbHome . l:ref_full_name)
 
 	" for ctags
 	if g:CsMgmtCtags == 1
-		call s:cm_del_tag_from_tags(g:CsMgmtDbHome . l:ref_full_name . '.tags')
+		call s:cm_ctags_detach(g:CsMgmtDbHome . l:ref_full_name)
 	endif
+    call s:dret("CsMgmtDetach")
 endf
 
-func! CsMgmtDetachGroup(line, pos)
-    if s:cm_is_group_line(a:line) == 0
+func! s:CsMgmtDetachGrp(line, pos)
+    call s:dfunc("CsMgmtDetachGrp")
+    call s:decho(printf("args: (%s, %d)", a:line, a:pos))
+
+    if s:cm_is_grp_line(a:line) == 0
         " echo 'it is a unexpect line'
+        call s:dret("CsMgmtDetachGrp")
         return
     endif
 
@@ -956,17 +979,23 @@ func! CsMgmtDetachGroup(line, pos)
     for p in l:childre_pos_list
         call CsMgmtDetach(getline(p), p)
     endfor
+    call s:dret("CsMgmtDetachGrp")
 endf
 
 func! CsMgmtBuild(line, pos)
-    if s:cm_is_group_line(a:line) == 1
+    call s:dfunc("CsMgmtBuild")
+    call s:decho(printf("args: (%s, %d)", a:line, a:pos))
+
+    if s:cm_is_grp_line(a:line) == 1
         call s:decho("Build By Group: ".a:line)
-        call CsMgmtBuildGroup(a:line, a:pos)
+        call s:CsMgmtBuildGrp(a:line, a:pos)
+        call s:dret("CsMgmtBuild")
         return
     endif
 
-    if s:cm_is_item_line(a:line) == 1
+    if s:cm_is_not_item_line(a:line) == 1
         " echo 'it is a unexpect line'
+        call s:dret("CsMgmtBuild")
         return
     endif
 
@@ -1029,11 +1058,11 @@ func! CsMgmtBuild(line, pos)
     call writefile(l:all_file_list, g:CsMgmtDbHome.l:ref_full_name.'.files')
 
     " real build for cscope
-    call s:cm_db_cscope_build(l:ref_full_name)
+    call s:cm_cscope_db_build(l:ref_full_name)
 
     " real build for ctags
 	if g:CsMgmtCtags == 1
-		call s:cm_db_ctags_build(l:ref_full_name)
+		call s:cm_ctags_db_build(l:ref_full_name)
 	endif
 
     " add a Attach word on the end of line
@@ -1041,11 +1070,16 @@ func! CsMgmtBuild(line, pos)
     call setline(a:pos,
         \ s:cm_show_item_construct(l:ref_level, l:parent, l:ref_name))
     call s:cm_buf_readonly_mode_set()
+    call s:dret("CsMgmtBuild")
 endf
 
-func! CsMgmtBuildGroup(line, pos)
-    if s:cm_is_group_line(a:line) == 0
+func! s:CsMgmtBuildGrp(line, pos)
+    call s:dfunc("CsMgmtBuildGrp")
+    call s:decho(printf("args: (%s, %d)", a:line, a:pos))
+
+    if s:cm_is_grp_line(a:line) == 0
         " echo 'it is a unexpect line'
+        call s:dret("CsMgmtBuildGrp")
         return
     endif
 
@@ -1054,19 +1088,22 @@ func! CsMgmtBuildGroup(line, pos)
     for p in l:childre_pos_list
         call CsMgmtBuild(getline(p), p)
     endfor
+    call s:dret("CsMgmtBuildGrp")
 endf
 
 func! CsMgmtRebuild(line, pos)
-    call s:dfunc(printf("CsMgmtRebuild(%s, %s) enter",
-                \ string(a:line), string(a:pos)))
-    if s:cm_is_group_line(a:line) == 1
-        call s:decho("Rebuild By Group: ".a:line)
-        call CsMgmtRebuildGroup(a:line, a:pos)
+    call s:dfunc("CsMgmtRebuild")
+    call s:decho(printf("args: (%s, %s)", string(a:line), string(a:pos)))
+
+    if s:cm_is_grp_line(a:line) == 1
+        call s:CsMgmtRebuildGrp(a:line, a:pos)
+        call s:dret("CsMgmtReBuild")
         return
     endif
 
-    if s:cm_is_item_line(a:line) == 1
+    if s:cm_is_not_item_line(a:line) == 1
         " echo 'it is a unexpect line'
+        call s:dret("CsMgmtReBuild")
         return
     endif
 
@@ -1132,11 +1169,11 @@ func! CsMgmtRebuild(line, pos)
     call writefile(l:all_file_list, g:CsMgmtDbHome.l:ref_full_name.'.files')
 
     " real build for cscope
-    call s:cm_db_cscope_build(l:ref_full_name)
+    call s:cm_cscope_db_build(l:ref_full_name)
 
     " real build for ctags
 	if g:CsMgmtCtags == 1
-		call s:cm_db_ctags_build(l:ref_full_name)
+		call s:cm_ctags_db_build(l:ref_full_name)
 	endif
 
     " add a Attach word on the end of line
@@ -1149,12 +1186,16 @@ func! CsMgmtRebuild(line, pos)
         call CsMgmtDetach(a:line, a:pos)
         call CsMgmtAttach(a:line[0:-len(" Attach")-1], a:pos)
     endif
-    call s:dret("CsMgmtRebuild return")
+    call s:dret("CsMgmtRebuild")
 endf
 
-func! CsMgmtRebuildGroup(line, pos)
-    if s:cm_is_group_line(a:line) == 0
+func! s:CsMgmtRebuildGrp(line, pos)
+    call s:dfunc("CsMgmtRebuildGrp")
+    call s:decho(printf("args: (%s, %s)", string(a:line), string(a:pos)))
+
+    if s:cm_is_grp_line(a:line) == 0
         " echo 'it is a unexpect line'
+        call s:dret("CsMgmtRebuildGrp")
         return
     endif
 
@@ -1163,20 +1204,25 @@ func! CsMgmtRebuildGroup(line, pos)
     for p in l:childre_pos_list
         call CsMgmtRebuild(getline(p), p)
     endfor
+    call s:dret("CsMgmtRebuildGrp")
 endf
 
 let s:cm_edit_prev_bufnr = 0
 func! CsMgmtEdit(line, pos)
+    call s:dfunc("CsMgmtEdit")
+    call s:decho(printf("args: (%s, %s)", string(a:line), string(a:pos)))
+
     if s:cm_is_item_n_grp(a:line) == 0
         call s:decho(a:line)
         " echo 'it is a unexpect line'
+        call s:dret("CsMgmtEdit")
         return
     endif
 
     let l:ref_level = s:cm_item_level_get(a:line)
     let l:parent_list = s:cm_parent_list_on_buf_get(l:ref_level, a:line, a:pos)
 
-    if s:cm_is_group_line(a:line) == 1
+    if s:cm_is_grp_line(a:line) == 1
         let l:ref_name = s:cm_str_strip(a:line)[:-2]
     else
         let l:ref_name = s:cm_item_name_get(a:line)
@@ -1234,13 +1280,17 @@ func! CsMgmtEdit(line, pos)
         call append(line('$')-1, i)
     endfor
 
+    call s:dret("CsMgmtEdit")
 endf
 
 func! CsMgmtDelete(line, pos)
-    if s:cm_is_item_line(a:line) == 1
-        if s:cm_is_group_line(a:line) == 1
+    call s:dfunc("CsMgmtDelete")
+    call s:decho(printf("args: (%s, %d)", a:line, a:pos))
+
+    if s:cm_is_not_item_line(a:line) == 1
+        if s:cm_is_grp_line(a:line) == 1
             " delete a group
-            call s:cm_db_group_rm(a:line, a:pos)
+            call s:cm_db_grp_rm(a:line, a:pos)
             call s:cm_json_to_file()
             call s:cm_mgmt_buf_refresh(line("."))
         endif
@@ -1249,28 +1299,29 @@ func! CsMgmtDelete(line, pos)
         call s:cm_json_to_file()
         call s:cm_mgmt_buf_refresh(line("."))
     endif
+    call s:dret("CsMgmtDelete")
 endf
 
 func! CsMgmtQuit(line, pos)
-    call s:dfunc(printf("CsMgmtQuit(%s, %d) enter",
-                \ a:line, a:pos))
+    call s:dfunc("CsMgmtQuit")
+    call s:decho(printf("args: (%s, %d)", a:line, a:pos))
 
     if s:cm_futher_info_buf_on
         wincmd j | wincmd q | wincmd h
     endif
 
     exec 'silent bd!'
-    call s:dret("CsMgmtQuit return")
+    call s:dret("CsMgmtQuit")
 endf
 
 let s:cm_futher_info_buf_on=0
 func! CsMgmtFurtherInfo(line, pos)
     call s:dfunc(printf("CsMgmtFurtherInfo(%s, %d) enter",
                 \ a:line, a:pos))
-    if s:cm_is_item_line(a:line) == 1
+    if s:cm_is_not_item_line(a:line) == 1
         " echo 'it is a unexpect line'
         call s:decho("a unexpect line.")
-        call s:dret("CsMgmtFurtherInfo return")
+        call s:dret("CsMgmtFurtherInfo")
         return
     endif
 
@@ -1314,18 +1365,22 @@ func! CsMgmtFurtherInfo(line, pos)
     exec 'resize 10'
     wincmd k
 
-    call s:dret("CsMgmtFurtherInfo return")
+    call s:dret("CsMgmtFurtherInfo")
 endf
 
 func! CsMgmtOpenAllFile(line, pos)
+    call s:dfunc("CsMgmtOpenAllFile")
+    call s:decho(printf("args: %s, %s", a:line, a:pos))
 
-    if s:cm_is_item_line(a:line) == 1
+    if s:cm_is_not_item_line(a:line) == 1
         " echo 'it is a unexpect line'
+        call s:dret("CsMgmtOpenAllFile")
         return
     endif
 
     if s:cm_str_strip(a:line)[0] == s:cm_db_nonexist_token
         call s:cm_echohl1("You have not built its cross-reference.")
+        call s:dret("CsMgmtOpenAllFile")
         return
     endif
 
@@ -1361,6 +1416,165 @@ func! CsMgmtOpenAllFile(line, pos)
     " back to menu buffer
     wincmd h
 
+    call s:dret(printf("CsMgmtOpenAllFile"))
+endf
+
+func! CsMgmtAdd(...) abort
+    " a:000[0]: protocol
+    " a:000[1]: file path
+    " a:000[2]: ref_name <- it is not necessary.
+    " a:000[3]: group <- it is not necessary.
+    if len(a:000) > 4 || len(a:000) < 2
+        call s:cm_echo( ":Csmgmtadd <[dir|file]> <src path> [[<alias>] <group>]" )
+        call s:cm_echo( "  example:" )
+        call s:cm_echo( "    :Csmgmtadd dir /foo/bar" )
+        call s:cm_echo( "    :Csmgmtadd dir /foo/bar foobar" )
+        call s:cm_echo( "    :Csmgmtadd dir /foo/bar foobar foo/bar" )
+        call s:cm_echo( "    :Csmgmtadd file /foo/bar.tar.gz" )
+        call s:cm_echo( "    :Csmgmtadd file /foo/bar.tar.gz foobar" )
+        call s:cm_echo( "    :Csmgmtadd file /foo/bar.tar.gz foobar foo/bar" )
+        call s:cm_echo( " " )
+        return
+    endif
+
+    if !exists('g:cm_view')
+        if s:cm_db_chk() == -1
+            return
+        endif
+    endif
+
+    if !isdirectory(g:CsMgmtSrcDepot)
+        call mkdir(g:CsMgmtSrcDepot)
+    endif
+
+    " TODO: json - add lot of entry at one time.
+    let l:prot_type = ['file', 'dir']
+    let l:argc = len(a:000)
+    let l:type = a:000[0]
+    let l:path = a:000[1]
+    let l:ref_name = ''
+    let l:grp_parent = []
+    let l:grp_new = []
+    let l:cwd = getcwd()
+
+    if l:argc > 2
+        let l:ref_name = a:000[2]
+
+        " check reserved words in filename
+        if len(s:cm_filename_resv_words(l:ref_name))
+            call s:cm_echohl1("Don't contain reserved words in ref_name.")
+            return
+        endif
+
+        if l:argc == 4
+            let l:grouping = s:cm_grp_chk_n_split(a:000[3])
+            " if correct, it should return length 2.
+            if len(l:grouping) == 1
+                return
+            endif
+
+            let l:grp_new = l:grouping[0]
+            let l:grp_parent = l:grouping[1]
+        endif
+
+        if !len(l:grp_new)
+            "check key whenter existed in json befor
+            let l:db = s:cm_db_get()
+
+            " roll into its parent
+            for k in l:grp_parent
+                let l:db = l:db[k]
+            endfor
+
+            if has_key(l:db, l:ref_name)
+                call s:cm_echohl1( l:ref_name . " has existed in "
+                            \ . join(l:grp_parent, "/") . ".")
+                return
+            endif
+        endif " if len(l:grp_new)
+    endif
+
+    let l:type_func = ''
+    for t in l:prot_type
+        if l:type == t
+            let l:type_func = 's:cm_get_src_from_' . l:type
+            if l:type_func == -1
+                return -1
+            endif
+        endif
+    endfor
+
+    if l:type_func == ''
+        call s:cm_echohl1( 'Not support '. l:type .' protocol type' )
+        return
+    endif
+
+    " symbol replacement
+    if l:path[0] == '~'
+        let l:path = $HOME . l:path[1:]
+    elseif l:path[0:2] == '../' " ../foo/bar
+        let l:path = l:cwd . '/' . l:path
+    elseif l:path[0:1] == './' " ./foo/bar
+        let l:path = l:cwd . l:path[1:]
+    elseif l:path[0:3] == '$PWD' " $PWD/foo/bar
+        let l:path = l:cwd . l:path[4:]
+    elseif l:path[0] == '/' " /foo/bar
+        let l:path = l:path
+    else
+        let l:path = l:cwd . '/' . l:path " foor/bar
+    endif
+
+    let l:path = simplify(l:path)
+
+    let l:source_path = eval(l:type_func . '("' . l:path . '")')
+
+    if l:source_path == ''
+        call s:cm_echoerr( 'program error ??' )
+        call s:cm_echoerr( 'type_func: ' . l:type_funca )
+        call s:cm_echoerr( 'path: ' . l:path )
+        return
+    endif
+
+    if l:ref_name == ''
+        let l:ref_name = split(l:source_path, '/')[-1]
+    endif
+
+    " craete add_dict
+    let l:add_dict = {}
+    if len(l:grp_new) != 0
+        let l:grp_new = reverse(l:grp_new)
+        let l:add_dict[l:grp_new[0]] = {l:ref_name : [l:source_path]}
+        call remove(l:grp_new, 0)
+
+        while len(l:grp_new)
+            let l:add_dict = {l:grp_new[0]:copy(l:add_dict)}
+            call remove(l:grp_new, 0)
+        endwhile
+    endif
+
+    " find adding entrance
+    let l:db = s:cm_db_get()
+    while len(l:grp_parent)
+        let l:db = l:db[l:grp_parent[0]]
+        call remove(l:grp_parent, 0)
+    endwhile
+
+    if len(l:add_dict)
+        let l:db[keys(l:add_dict)[0]] = values(l:add_dict)[0]
+    els
+        let l:db[l:ref_name] = [l:source_path]
+    endif
+
+    call s:cm_json_to_file()
+    call s:cm_mgmt_buf_refresh(line("."))
+endf
+
+func! CsMgmt() abort
+    if s:cm_db_chk() == -1
+        return
+    endif
+
+    call s:cm_mgmt_buf_show(s:cm_mgmt_buf_view(s:cm_db_get()))
 endf
 
 func! s:cm_mgmt_buf_theme()
@@ -1512,164 +1726,6 @@ func! s:cm_mgmt_buf_show(content)
 
     " Its working directory will be changed to tmpename directory, rolling back
     exec 'cd ' . l:pwd
-endf
-
-func! CsMgmtAdd(...) abort
-    " a:000[0]: protocol
-    " a:000[1]: file path
-    " a:000[2]: ref_name <- it is not necessary.
-    " a:000[3]: group <- it is not necessary.
-    if len(a:000) > 4 || len(a:000) < 2
-        call s:cm_echo( ":Csmgmtadd <[dir|file]> <src path> [[<alias>] <group>]" )
-        call s:cm_echo( "  example:" )
-        call s:cm_echo( "    :Csmgmtadd dir /foo/bar" )
-        call s:cm_echo( "    :Csmgmtadd dir /foo/bar foobar" )
-        call s:cm_echo( "    :Csmgmtadd dir /foo/bar foobar foo/bar" )
-        call s:cm_echo( "    :Csmgmtadd file /foo/bar.tar.gz" )
-        call s:cm_echo( "    :Csmgmtadd file /foo/bar.tar.gz foobar" )
-        call s:cm_echo( "    :Csmgmtadd file /foo/bar.tar.gz foobar foo/bar" )
-        call s:cm_echo( " " )
-        return
-    endif
-
-    if !exists('g:cm_view')
-        if s:cm_db_chk() == -1
-            return
-        endif
-    endif
-
-    if !isdirectory(g:CsMgmtSrcDepot)
-        call mkdir(g:CsMgmtSrcDepot)
-    endif
-
-    " TODO: json - add lot of entry at one time.
-    let l:prot_type = ['file', 'dir']
-    let l:argc = len(a:000)
-    let l:type = a:000[0]
-    let l:path = a:000[1]
-    let l:ref_name = ''
-    let l:grp_parent = []
-    let l:grp_new = []
-    let l:cwd = getcwd()
-
-    if l:argc > 2
-        let l:ref_name = a:000[2]
-
-        " check reserved words in filename
-        if len(s:cm_filename_resv_words(l:ref_name))
-            call s:cm_echohl1("Don't contain reserved words in ref_name.")
-            return
-        endif
-
-        if l:argc == 4
-            let l:grouping = s:parser_group_name(a:000[3])
-            " if correct, it should return length 2.
-            if len(l:grouping) == 1
-                return
-            endif
-
-            let l:grp_new = l:grouping[0]
-            let l:grp_parent = l:grouping[1]
-        endif
-
-        if !len(l:grp_new)
-            "check key whenter existed in json befor
-            let l:db = s:cm_db_get()
-
-            " roll into its parent
-            for k in l:grp_parent
-                let l:db = l:db[k]
-            endfor
-
-            if has_key(l:db, l:ref_name)
-                call s:cm_echohl1( l:ref_name . " has existed in "
-                            \ . join(l:grp_parent, "/") . ".")
-                return
-            endif
-        endif " if len(l:grp_new)
-    endif
-
-    let l:type_func = ''
-    for t in l:prot_type
-        if l:type == t
-            let l:type_func = 's:cm_get_src_from_' . l:type
-            if l:type_func == -1
-                return -1
-            endif
-        endif
-    endfor
-
-    if l:type_func == ''
-        call s:cm_echohl1( 'Not support '. l:type .' protocol type' )
-        return
-    endif
-
-    " symbol replacement
-    if l:path[0] == '~'
-        let l:path = $HOME . l:path[1:]
-    elseif l:path[0:2] == '../' " ../foo/bar
-        let l:path = l:cwd . '/' . l:path
-    elseif l:path[0:1] == './' " ./foo/bar
-        let l:path = l:cwd . l:path[1:]
-    elseif l:path[0:3] == '$PWD' " $PWD/foo/bar
-        let l:path = l:cwd . l:path[4:]
-    elseif l:path[0] == '/' " /foo/bar
-        let l:path = l:path
-    else
-        let l:path = l:cwd . '/' . l:path " foor/bar
-    endif
-
-    let l:path = simplify(l:path)
-
-    let l:source_path = eval(l:type_func . '("' . l:path . '")')
-
-    if l:source_path == ''
-        call s:cm_echoerr( 'program error ??' )
-        call s:cm_echoerr( 'type_func: ' . l:type_funca )
-        call s:cm_echoerr( 'path: ' . l:path )
-        return
-    endif
-
-    if l:ref_name == ''
-        let l:ref_name = split(l:source_path, '/')[-1]
-    endif
-
-    " craete add_dict
-    let l:add_dict = {}
-    if len(l:grp_new) != 0
-        let l:grp_new = reverse(l:grp_new)
-        let l:add_dict[l:grp_new[0]] = {l:ref_name : [l:source_path]}
-        call remove(l:grp_new, 0)
-
-        while len(l:grp_new)
-            let l:add_dict = {l:grp_new[0]:copy(l:add_dict)}
-            call remove(l:grp_new, 0)
-        endwhile
-    endif
-
-    " find adding entrance
-    let l:db = s:cm_db_get()
-    while len(l:grp_parent)
-        let l:db = l:db[l:grp_parent[0]]
-        call remove(l:grp_parent, 0)
-    endwhile
-
-    if len(l:add_dict)
-        let l:db[keys(l:add_dict)[0]] = values(l:add_dict)[0]
-    els
-        let l:db[l:ref_name] = [l:source_path]
-    endif
-
-    call s:cm_json_to_file()
-    call s:cm_mgmt_buf_refresh(line("."))
-endf
-
-func! CsMgmt() abort
-    if s:cm_db_chk() == -1
-        return
-    endif
-
-    call s:cm_mgmt_buf_show(s:cm_mgmt_buf_view(s:cm_db_get()))
 endf
 
 let s:CsMgmtDb = s:cm_db_get_from_file()
