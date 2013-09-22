@@ -393,7 +393,8 @@ func! s:cm_grp_chk_n_split(group)
     return [l:g_name, l:g_parent]
 endf
 
-func! s:cm_deep_grp_collect(indent_level, collect_list, config, parent)
+" grp walk and append to collect_list
+func! s:cm_grp_walk(indent_level, collect_list, config, parent)
     let l:indent_level = a:indent_level + 1
 
     for k in keys(a:config)
@@ -402,7 +403,7 @@ func! s:cm_deep_grp_collect(indent_level, collect_list, config, parent)
                     \ s:cm_show_item_construct(l:indent_level, a:parent, k))
         elseif type(a:config[k]) == 4
             call add(a:collect_list, printf('%s:', s:cm_str_add_indent(l:indent_level, k)))
-            call s:cm_deep_grp_collect(l:indent_level, a:collect_list,
+            call s:cm_grp_walk(l:indent_level, a:collect_list,
                         \ a:config[k], printf('%s_%s', a:parent, k))
         endif
     endfor
@@ -530,53 +531,6 @@ func! s:cm_show_item_construct(indent_level, parent, ref_name)
     endif
 endf
 
-" check the g:CsMgmtDbHome exist or not. new one folder, if not existing.
-func! s:cm_db_home_chk_n_new()
-    if !isdirectory(g:CsMgmtDbHome)
-        if filereadable(g:CsMgmtDbHome)
-            call s:cm_echohl1( g:CsMgmtDbHome . " must be a directory." )
-            return -1
-        endif
-
-        if mkdir(g:CsMgmtDbHome) != 1
-            call s:cm_echohl1( 'Can not create ' . g:CsMgmtDbHome)
-            return -1
-        endif
-    endif
-endf
-
-func! s:cm_db_chk()
-    if !filereadable(g:CsMgmtDbFile)
-        call s:cm_echohl1( "you need have a config file befor" )
-        return -1
-    endif
-
-    if s:cm_db_home_chk_n_new() == -1
-        return -1
-    endif
-endf
-
-func! s:cm_db_get_from_file()
-    if !filereadable(g:CsMgmtDbFile)
-		if s:cm_db_home_chk_n_new() == -1
-			return -1
-		endif
-
-        " default config
-        call writefile(["{'usr_include' : ['/usr/include/', ],}"], g:CsMgmtDbFile )
-    endif
-
-    return eval(join(readfile(g:CsMgmtDbFile)))
-endf
-
-func! s:cm_db_get()
-    if !exists('s:CsMgmtDb') || &cp
-        let s:CsMgmtDb = s:cm_db_get_from_file()
-    endif
-
-    return s:CsMgmtDb
-endf
-
 " look down and only included more level than it until it run into a blank line
 func! s:cm_children_pos_list_on_buf_get(level, line, pos)
     let l:pos = a:pos
@@ -679,6 +633,53 @@ endf
 func! s:cm_buf_readonly_mode_set()
     setl nomodifiable
     setl buftype=nofile
+endf
+
+" check the g:CsMgmtDbHome exist or not. new one folder, if not existing.
+func! s:cm_db_home_chk_n_new()
+    if !isdirectory(g:CsMgmtDbHome)
+        if filereadable(g:CsMgmtDbHome)
+            call s:cm_echohl1( g:CsMgmtDbHome . " must be a directory." )
+            return -1
+        endif
+
+        if mkdir(g:CsMgmtDbHome) != 1
+            call s:cm_echohl1( 'Can not create ' . g:CsMgmtDbHome)
+            return -1
+        endif
+    endif
+endf
+
+func! s:cm_db_chk()
+    if !filereadable(g:CsMgmtDbFile)
+        call s:cm_echohl1( "you need have a config file befor" )
+        return -1
+    endif
+
+    if s:cm_db_home_chk_n_new() == -1
+        return -1
+    endif
+endf
+
+func! s:cm_db_get_from_file()
+    if !filereadable(g:CsMgmtDbFile)
+		if s:cm_db_home_chk_n_new() == -1
+			return -1
+		endif
+
+        " default config
+        call writefile(["{'usr_include' : ['/usr/include/', ],}"], g:CsMgmtDbFile )
+    endif
+
+    return eval(join(readfile(g:CsMgmtDbFile)))
+endf
+
+func! s:cm_db_get()
+    if !exists('s:CsMgmtDb') || &cp
+        let s:CsMgmtDb = s:cm_db_get_from_file()
+    endif
+
+    return s:CsMgmtDb
 endf
 
 func! s:cm_db_rm(line, pos)
@@ -1612,7 +1613,7 @@ func! s:cm_mgmt_buf_view(json)
         elseif type(a:json[k]) == 4
             let l:deep_collect = []
             call add(l:view_data, printf('%s:', k))
-            call s:cm_deep_grp_collect(0, l:deep_collect, a:json[k], k)
+            call s:cm_grp_walk(0, l:deep_collect, a:json[k], k)
             for d in l:deep_collect
                 call add(l:view_data, d)
             endfor
