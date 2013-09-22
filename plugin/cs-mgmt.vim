@@ -592,7 +592,7 @@ func! s:cm_parent_list_on_buf_get(level, line, pos)
     let l:parent_list = []
 
     if l:level == 0
-        return ''
+        return l:parent_list
     endif
 
     while 1
@@ -771,6 +771,7 @@ endf
 " the token is used to compose a reverseable string from list
 let s:rvs_able_token = "!@!"
 func! s:cm_list_to_rvs_able_str(plist)
+    if len(a:plist) == 0 | return "" | endif
     return join(a:plist, s:rvs_able_token)
 endf
 
@@ -1174,6 +1175,7 @@ func! CsMgmtEdit(line, pos)
 
     let l:ref_level = s:cm_item_level_get(a:line)
     let l:parent_list = s:cm_parent_list_on_buf_get(l:ref_level, a:line, a:pos)
+
     if s:cm_is_group_line(a:line) == 1
         let l:ref_name = s:cm_str_strip(a:line)[:-2]
     else
@@ -1184,16 +1186,17 @@ func! CsMgmtEdit(line, pos)
                 \   (join(l:parent_list, '_'))
 
     let l:parent_rvs = s:cm_list_to_rvs_able_str(l:parent_list)
-    call s:decho("parent_rvs: " . l:parent_rvs)
 
     let l:ref_full_name = (l:parent == '') ?
                 \   (l:ref_name):
                 \   (l:parent.'_'.l:ref_name)
+
     call s:decho("ref_level: " . l:ref_level)
     call s:decho("ref_name: " . l:ref_name)
     call s:decho("ref_full_name: " . l:ref_full_name)
     call s:decho("parent_list: " . string(l:parent_list))
     call s:decho("parent: " . l:parent)
+    call s:decho("parent_rvs: " . l:parent_rvs)
 
     let l:db= s:cm_db_get()
     let l:item = {}
@@ -1679,7 +1682,9 @@ augroup CsMgmtEditAutoCmd
             \|  let item = db
             \|  let buf = eval(join(getline('^', '$')))
             \|  let plist = s:cm_rvs_able_to_list(bufname('%'))[1:]
-            \|  let plist[-1] = plist[-1][:-(len(".cs-mgmt-edit") + 1)]
+            \|  if len(plist)
+            \|      let plist[-1] = plist[-1][:-(len(".cs-mgmt-edit") + 1)]
+            \|  endif
             \|  let s:json2file_list = []
             \|  let indent_level = 1
             \|  call s:decho("plist: " . string(plist))
