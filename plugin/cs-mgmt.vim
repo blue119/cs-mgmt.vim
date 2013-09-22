@@ -775,6 +775,8 @@ func! s:cm_get_readonly_mode()
 endf
 
 func! CsMgmtAttachByGroup(line, pos)
+    call s:dfunc(printf("CsMgmtAttach(%s, %d) enter",
+                \ a:line, a:pos))
     if s:cm_is_it_a_group_title(a:line) == 0
         " echo 'it is a unexpect line'
         return
@@ -785,6 +787,7 @@ func! CsMgmtAttachByGroup(line, pos)
     for p in l:childre_pos_list
         call CsMgmtAttach(getline(p), p)
     endfor
+    call s:dret("CsMgmtAttachByGroup return")
 endf
 
 func! CsMgmtDetachByGroup(line, pos)
@@ -826,15 +829,32 @@ func! CsMgmtRebuildByGroup(line, pos)
     endfor
 endf
 
+func! CsMgmtQuit(line, pos)
+    call s:dfunc(printf("CsMgmtQuit(%s, %d) enter",
+                \ a:line, a:pos))
+
+    if s:cm_futher_info_window_on
+        wincmd j | wincmd q | wincmd h
+    endif
+
+    exec 'silent bd!'
+    call s:dret("CsMgmtQuit return")
+endf
+
 func! CsMgmtAttach(line, pos)
+    call s:dfunc(printf("CsMgmtAttach(%s, %d) enter",
+                \ a:line, a:pos))
+
     if s:cm_is_it_a_group_title(a:line) == 1
-        call s:decho("Attach By Group: ".a:line)
         call CsMgmtAttachByGroup(a:line, a:pos)
+        call s:dret("CsMgmtAttach return")
         return
     endif
 
     if s:cm_is_it_a_unexpect_line(a:line) == 1
         " echo 'it is a unexpect line'
+        call s:decho("a unexpect line.")
+        call s:dret("CsMgmtAttach return")
         return
     endif
 
@@ -870,6 +890,7 @@ func! CsMgmtAttach(line, pos)
 	if g:CsMgmtCtags == 1
 		call s:cm_add_tag_to_tags(g:CsMgmtRefHome . l:ref_full_name . '.tags')
 	endif
+    call s:dret("CsMgmtAttach return")
 endf
 
 func! s:cm_del_db(line, pos)
@@ -1362,6 +1383,91 @@ func! CsMgmtEdit(line, pos)
 
 endf
 
+let s:cm_futher_info_window_on=0
+func! CsMgmtFurtherInfo(line, pos)
+    call s:dfunc(printf("CsMgmtFurtherInfo(%s, %d) enter",
+                \ a:line, a:pos))
+    if s:cm_is_it_a_unexpect_line(a:line) == 1
+        " echo 'it is a unexpect line'
+        call s:decho("a unexpect line.")
+        call s:dret("CsMgmtFurtherInfo return")
+        return
+    endif
+
+    let l:ref_level = s:cm_which_level_is_it(a:line)
+    let l:parent_list = s:cm_get_parent_list_from_buf(l:ref_level, a:line, a:pos)
+    let l:ref_name = s:get_ref_item_name(a:line)
+    let l:parent = (len(l:parent_list) == 0) ?
+                \   (''):
+                \   (join(l:parent_list, '_'))
+
+    let l:parent_rvs = s:cm_list_to_rvs_able_str(l:parent_list)
+    let l:ref_full_name = (l:parent == '') ?
+                \   (l:ref_name):
+                \   (l:parent.'_'.l:ref_name)
+
+    call s:decho("ref_level: " . l:ref_level)
+    call s:decho("ref_name: " . l:ref_name)
+    call s:decho("ref_full_name: " . l:ref_full_name)
+    call s:decho("parent_list: " . string(l:parent_list))
+    call s:decho("parent: " . l:parent)
+
+    if s:cm_futher_info_window_on == 1
+        " closing further infor window
+        wincmd j | wincmd q | wincmd h
+        let s:cm_futher_info_window_on = 0
+    endif
+
+    wincmd s | wincmd r
+
+    let s:cm_futher_info_window_on=1
+    exec 'silent edit ' . tempname()
+    setl ft=vim
+    setl buftype=nofile
+    setl noswapfile
+
+    call append(line('$')-1, ("ref_level: " . l:ref_level))
+    call append(line('$')-1, ("ref_name: " . l:ref_name))
+    call append(line('$')-1, ("ref_full_name: " . l:ref_full_name))
+    call append(line('$')-1, ("parent_list: " . string(l:parent_list)))
+    call append(line('$')-1, ("parent: " . l:parent))
+    exec 'resize 10'
+    wincmd k
+
+    " let l:db= s:cm_get_db()
+    " let l:item = {}
+    " no parent, if it is stay in top level
+    " if l:ref_level
+        " for i in l:parent_list
+            " let l:db= l:db[i]
+        " endfor
+    " endif
+
+    " let l:item[l:ref_name] = l:db[l:ref_name]
+    " call s:decho(l:item)
+
+    " let l:tmp = l:parent_list
+    " let l:edit_bufn = s:cm_list_to_rvs_able_str(insert(l:tmp, tempname(), 0)) . '.cs-mgmt-edit'
+    " call s:decho("edit_bufn: " .  l:edit_bufn)
+
+    " wincmd l
+
+    " exec 'silent edit ' . l:edit_bufn
+
+
+    " let s:json2file_list = []
+
+    " call add(s:json2file_list, '{')
+    " call s:cm_json_dip(1, l:item)
+    " call add(s:json2file_list, '}')
+
+    " for i in s:json2file_list
+        " call append(line('$')-1, i)
+    " endfor
+
+    call s:dret("CsMgmtFurtherInfo return")
+endf
+
 func! s:cm_json_dip(indent_level, value)
     for item in items(a:value)
         let l:il = a:indent_level
@@ -1643,10 +1749,10 @@ let s:header = ['" +-------------- Key Map ---------------+',
               \ '" | Press r: to rebuild db               |',
               \ '" | Press e: edit this configuration     |',
               \ '" |--------------------------------------|',
-              \ '" | Press dd: delete a entry from menu   |',
-              \ '" | Press oo: open all file at one time  |',
-              \ '" |--------------------------------------|',
+              \ '" | Press dd: delete a item from menu    |',
               \ '" | Press q: quit                        |',
+              \ '" |--------------------------------------|',
+              \ '" | Press oo: open all files at one time |',
               \ '" +--------------------------------------+']
 
 func! s:cm_buf_show(content)
@@ -1688,12 +1794,13 @@ func! s:cm_buf_show(content)
 
     call s:cm_buf_color()
 
-    nnoremap <silent> <buffer> q :silent bd!<CR>
+    nnoremap <silent> <buffer> q :call CsMgmtQuit(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <silent> <buffer> a :call CsMgmtAttach(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <silent> <buffer> d :call CsMgmtDetach(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <silent> <buffer> b :call CsMgmtBuild(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <silent> <buffer> r :call CsMgmtRebuild(printf("%s", getline('.')), line('.'))<CR>
     nnoremap <silent> <buffer> e :call CsMgmtEdit(printf("%s", getline('.')), line('.'))<CR>
+    nnoremap <silent> <buffer> i :call CsMgmtFurtherInfo(printf("%s", getline('.')), line('.'))<CR>
 
     " for edit
     " deleting a db entry, but don't delete real file.
