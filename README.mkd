@@ -86,9 +86,4 @@ When you cursor focused on buffer of CsMgmt, following key can be used to manage
 * Press dd to delete a single reference or whole group.
 * Press oo to open all file on vim buffer at one time.
 
-## wish list
-* a hotkey to show db info
-* the db file will be auto-update when file be update.
-* support a shell command to build cscope.file from CsDbMgmtAdd command. It can used to filter some file you don't want them be included
-* Debug message collection
 
