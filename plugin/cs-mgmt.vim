@@ -141,18 +141,18 @@ func! s:cm_engines_detach_set(engine, detach)
     call s:dret("cm_engines_detach_set")
 endfunc
 
-func! s:cm_engines_db_build_set(engine, do_build)
+func! s:cm_engines_db_build_set(engine, db_build)
     call s:dfunc("cm_engines_db_build_set")
-    call s:decho(printf("args: (%s, %s)", a:engine, a:do_build))
-    let s:cm_engines[a:engine]['do_build'] = function(a:do_build)
+    call s:decho(printf("args: (%s, %s)", a:engine, a:db_build))
+    let s:cm_engines[a:engine]['db_build'] = function(a:db_build)
     call s:decho(s:cm_engines[a:engine])
     call s:dret("cm_engines_db_build_set")
 endfunc
 
-func! s:cm_engines_db_rm_set(engine, do_rm)
+func! s:cm_engines_db_rm_set(engine, db_rm)
     call s:dfunc("cm_engines_db_rm_set")
-    call s:decho(printf("args: (%s, %s)", a:engine, a:do_rm))
-    let s:cm_engines[a:engine]['do_rm'] = function(a:do_rm)
+    call s:decho(printf("args: (%s, %s)", a:engine, a:db_rm))
+    let s:cm_engines[a:engine]['db_rm'] = function(a:db_rm)
     call s:decho(s:cm_engines[a:engine])
     call s:dret("cm_engines_db_rm_set")
 endfunc
@@ -241,7 +241,6 @@ endif
 
 " Cscoope's Function"{{{
 if g:CsMgmtCscopeEnable == 1
-    " TODO: register to dict
     func! s:cm_cscope_attach(db) dict
         exec printf("cs add %s.out", a:db)
     endf
@@ -1128,7 +1127,7 @@ func! CsMgmtBuild(line, pos)
 
     if len(l:all_file_list) == 0
         let l:msg =  'It is not finish to build cscope reference,'
-            \ .  ' because no fidning any c or cpp file in ' . l:include_path_list
+            \ .  ' because no fidning any c or cpp file in ' . string(l:path_list)
         call s:cm_echohl1(l:msg)
         return
     endif
@@ -1234,7 +1233,7 @@ func! CsMgmtRebuild(line, pos)
 
     if len(l:all_file_list) == 0
         let l:msg =  'It is not finish to build cscope reference,'
-            \ .  ' because no fidning any c or cpp file in ' . l:path_list
+            \ .  ' because no fidning any c or cpp file in ' . string(l:path_list)
         call s:cm_echohl1(l:msg)
         return
     endif
