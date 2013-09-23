@@ -117,12 +117,44 @@ endif
 "            },
 " }
 let s:cm_engines = {}
-func! s:cm_engines_register(engine, cmd)
-    call s:dfunc("cm_engines_register")
+func! s:cm_engine_register(engine, cmd)
+    call s:dfunc("cm_engine_register")
     call s:decho(printf("args: (%s, %s)", a:engine, a:cmd))
     let s:cm_engines[a:engine] = {'cmd': a:cmd}
     call s:decho(s:cm_engines)
-    call s:dret("cm_engines_register")
+    call s:dret("cm_engine_register")
+endfunc
+
+func! s:cm_engines_attach_set(engine, attach)
+    call s:dfunc("cm_engines_attach_set")
+    call s:decho(printf("args: (%s, %s)", a:engine, a:attach))
+    let s:cm_engines[a:engine]['attach'] = function(a:attach)
+    call s:decho(s:cm_engines[a:engine])
+    call s:dret("cm_engines_attach_set")
+endfunc
+
+func! s:cm_engines_detach_set(engine, detach)
+    call s:dfunc("cm_engines_detach_set")
+    call s:decho(printf("args: (%s, %s)", a:engine, a:detach))
+    let s:cm_engines[a:engine]['detach'] = function(a:detach)
+    call s:decho(s:cm_engines[a:engine])
+    call s:dret("cm_engines_detach_set")
+endfunc
+
+func! s:cm_engines_db_build_set(engine, do_build)
+    call s:dfunc("cm_engines_db_build_set")
+    call s:decho(printf("args: (%s, %s)", a:engine, a:do_build))
+    let s:cm_engines[a:engine]['do_build'] = function(a:do_build)
+    call s:decho(s:cm_engines[a:engine])
+    call s:dret("cm_engines_db_build_set")
+endfunc
+
+func! s:cm_engines_db_rm_set(engine, do_rm)
+    call s:dfunc("cm_engines_db_rm_set")
+    call s:decho(printf("args: (%s, %s)", a:engine, a:do_rm))
+    let s:cm_engines[a:engine]['do_rm'] = function(a:do_rm)
+    call s:decho(s:cm_engines[a:engine])
+    call s:dret("cm_engines_db_rm_set")
 endfunc
 
 " the lang's structure
@@ -130,61 +162,50 @@ endfunc
 "   'C': [all extension of C with expr],
 "   'C++': [*.c++, *.cc, *.cp, *.cpp, *.cxx, *.hh, *.hp, *.hpp, *.hxx, ],
 " }
-"
-func! s:cm_engines_set_langs(engine, langs)
-    call s:dfunc("cm_engines_set_langs")
+func! s:cm_engines_langs_set(engine, langs)
+    call s:dfunc("cm_engines_langs_set")
     call s:decho(printf("args: (%s, %s)", a:engine, string(a:langs)))
     let s:cm_engines[a:engine]['langs'] = a:langs
     call s:decho(s:cm_engines[a:engine])
-    call s:dret("cm_engines_set_langs")
+    call s:dret("cm_engines_langs_set")
 endfunc
 
-" g:CsMgmtCscopeDisable
-" TODO: cm_cscope_engine_register
-if !exists('g:CsMgmtCscopeDisable')
-    if executable('cscope')
-        let cscope_cmd = 'cscope'
-        call s:cm_engines_register('cscope', 'cscope')
-        " refer to ctags
-        let _langs = {}
-        let _langs['C'] = ['*.c']
-        let _langs['C++'] = ['*.c++', '*.cc', '*.cp', '*.cpp', '*.cxx', '*.h', '*.h++', '*.hh', '*.hp', '*.hpp', '*.hxx', '*.C', '*.H']
-        call s:cm_engines_set_langs('cscope', _langs)
-    else
-        call s:cm_echohl0( 'cs-mgmt: cscope command not found in PATH.' )
-        call s:cm_echohl0( 'cs-mgmt: you can disable cscope engine with g:CsMgmtCscopeDisable.' )
-        finish
-    endif
-else
-    if g:CsMgmtCscopeDisable == 1
-        " to disable cscope engine
-    endif
-endif
+" a set of callback
+func! s:cm_engine_attach(db)
+    call s:dfunc("cm_engine_attach")
+    call s:decho(printf("args: (%s)", string(a:db)))
+    for engine in keys(s:cm_engines)
+        call s:cm_engines[engine].attach(a:db)
+    endfor
+    call s:dret("cm_engine_attach")
+endf
 
-" It will also create a tags file of ctags after creating referencing file of
-" cscope
-" TODO: cm_ctags_engine_register
-if exists('g:CsMgmtCtags') && g:CsMgmtCtags == 1
-	if executable('ctags')
-		let ctags_cmd = 'ctags'
-        call s:cm_engines_register('ctags', 'ctags')
+func! s:cm_engine_detach(db)
+    call s:dfunc("cm_engine_detach")
+    call s:decho(printf("args: (%s)", string(a:db)))
+    for engine in keys(s:cm_engines)
+        call s:cm_engines[engine].detach(a:db)
+    endfor
+    call s:dret("cm_engine_detach")
+endf
 
-        let _langs = {}
-        let _langs_map = split(system('ctags --list-maps'), '\n')
-        for lang in _langs_map
-            let l = split(lang)
-            let _langs[l[0]] = l[1:]
-        endfor
-        call s:cm_engines_set_langs('ctags', _langs)
+func! s:cm_engine_db_build(db)
+    call s:dfunc("cm_engine_db_build")
+    call s:decho(printf("args: (%s)", string(a:db)))
+    for engine in keys(s:cm_engines)
+        call s:cm_engines[engine].db_build(a:db)
+    endfor
+    call s:dret("cm_engine_db_build")
+endf
 
-	else
-		call s:cm_echohl0( 'cs-mgmt: ctags command not found in PATH.' )
-		call s:cm_echohl0( 'cs-mgmt: Please disable the g:CsmgmtCtags variable.' )
-        finish
-	endif
-else
-	let g:CsMgmtCtags = 0
-endif
+func! s:cm_engine_db_rm(db)
+    call s:dfunc("cm_engine_db_rm")
+    call s:decho(printf("args: (%s)", string(a:db)))
+    for engine in keys(s:cm_engines)
+        call s:cm_engines[engine].db_rm(a:db)
+    endfor
+    call s:dret("cm_engine_db_rm")
+endf
 "}}}
 
 " where are your database
@@ -208,72 +229,139 @@ if !exists('g:CsMgmtReAttach')
     let g:CsMgmtReAttach = 0
 endif
 
+" Enable cscope engine. basically, it default to enable.
+if !exists('g:CsMgmtCscopeEnable')
+    let g:CsMgmtCscopeEnable = 1
+endif
 
-" Ctags's Function"{{{
-func! s:cm_ctags_attach(db)
-    let l:tag = a:db . ".tags"
-	if &tags == ""
-		exec printf("set tags=%s", l:new_tags)
-	else
-		exec printf("set tags=%s,%s", &tags, l:tag)
-	endif
-endf
-
-func! s:cm_ctags_detach(db)
-    let l:tag = a:db . ".tags"
-	let l:new_tags = ""
-	for t in split(&tags, ",")
-		if t != l:tag
-			if l:new_tags == ""
-				let l:new_tags = t
-			else
-				let l:new_tags = l:new_tags . ',' . t
-			endif
-		endif
-	endfor
-	exec printf("set tags=%s", l:new_tags)
-endf
-
-func! s:cm_ctags_db_build(ref_name)
-    let l:cmd_string = printf('cd %s && ctags -L %s.files -f %s.tags',
-            \ g:CsMgmtDbHome, a:ref_name, a:ref_name)
-
-    call s:cm_echohl2( a:ref_name.' building for ctags .... ' )
-    call system(l:cmd_string)
-    call s:cm_echohl4( a:ref_name.' built success.' )
-endf
-
-func! s:cm_ctags_db_rm(db)
-    call delete(a:db . '.tags')
-endf
-"}}}
+" Enable cscope engine. basically, it default to disable.
+if !exists('g:CsMgmtCtagsEnable')
+    let g:CsMgmtCtagsEnable = 0
+endif
 
 " Cscoope's Function"{{{
-func! s:cm_cscope_attach(db)
-	exec printf("cs add %s.out", a:db)
-endf
+if g:CsMgmtCscopeEnable == 1
+    " TODO: register to dict
+    func! s:cm_cscope_attach(db) dict
+        exec printf("cs add %s.out", a:db)
+    endf
 
-func! s:cm_cscope_detach(db)
-	exec printf("cs kill %s.out", a:db)
-endf
+    func! s:cm_cscope_detach(db) dict
+        exec printf("cs kill %s.out", a:db)
+    endf
 
-func! s:cm_cscope_db_build(ref_name)
-    let l:cmd_string = printf('cd %s && cscope -b -q -k -i%s.files -f%s.out',
-            \ g:CsMgmtDbHome, a:ref_name, a:ref_name)
+    func! s:cm_cscope_db_build(ref_name) dict
+        let l:cmd_string = printf('cd %s && cscope -b -q -k -i%s.files -f%s.out',
+                \ g:CsMgmtDbHome, a:ref_name, a:ref_name)
 
-    call s:cm_echohl2( a:ref_name.' building for cscope .... ' )
-    call system(l:cmd_string)
-    call s:cm_echohl4( a:ref_name.' built success.' )
-endf
+        call s:cm_echohl2( a:ref_name.' building for cscope .... ' )
+        call system(l:cmd_string)
+        call s:cm_echohl4( a:ref_name.' built success.' )
+    endf
 
-func! s:cm_cscope_db_rm(db)
-	let l:suffixs = ['.files', '.out', '.out.in', '.out.po']
+    func! s:cm_cscope_db_rm(db) dict
+        let l:suffixs = ['.files', '.out', '.out.in', '.out.po']
 
-    for suffix in l:suffixs
-        call delete(a:db . suffix)
-    endfor
-endf
+        for suffix in l:suffixs
+            call delete(a:db . suffix)
+        endfor
+    endf
+
+    func! s:cm_cscope_engine_init()
+        call s:dfunc("cm_cscope_engine_init")
+        if executable('cscope')
+            let cscope_cmd = 'cscope'
+            call s:cm_engine_register('cscope', 'cscope')
+            call s:cm_engines_attach_set('cscope', 's:cm_cscope_attach')
+            call s:cm_engines_detach_set('cscope', 's:cm_cscope_detach')
+            call s:cm_engines_db_build_set('cscope', 's:cm_cscope_db_build')
+            call s:cm_engines_db_rm_set('cscope', 's:cm_cscope_db_rm')
+
+            " refer to ctags
+            let l:langs = {}
+            let l:langs['C'] = ['*.c']
+            let l:langs['C++'] = ['*.c++', '*.cc', '*.cp', '*.cpp', '*.cxx', '*.h', '*.h++', '*.hh', '*.hp', '*.hpp', '*.hxx', '*.C', '*.H']
+            call s:cm_engines_langs_set('cscope', l:langs)
+        else
+            call s:cm_echohl0('cs-mgmt: cscope command not found in PATH.')
+            call s:cm_echohl0('cs-mgmt: you can disable cscope engine by "let g:CsMgmtCscopeEnable = 0".')
+            finish
+        endif
+        call s:dret("cm_cscope_engine_init")
+    endf
+
+    call s:cm_cscope_engine_init()
+endif " if g:CsMgmtCscopeEnable == 1
 " }}}
+
+" Ctags's Function"{{{
+if g:CsMgmtCtagsEnable == 1
+    func! s:cm_ctags_attach(db) dict
+        let l:tag = a:db . ".tags"
+        if &tags == ""
+            exec printf("set tags=%s", l:new_tags)
+        else
+            exec printf("set tags=%s,%s", &tags, l:tag)
+        endif
+    endf
+
+    func! s:cm_ctags_detach(db) dict
+        let l:tag = a:db . ".tags"
+        let l:new_tags = ""
+        for t in split(&tags, ",")
+            if t != l:tag
+                if l:new_tags == ""
+                    let l:new_tags = t
+                else
+                    let l:new_tags = l:new_tags . ',' . t
+                endif
+            endif
+        endfor
+        exec printf("set tags=%s", l:new_tags)
+    endf
+
+    func! s:cm_ctags_db_build(ref_name) dict
+        let l:cmd_string = printf('cd %s && ctags -L %s.files -f %s.tags',
+                \ g:CsMgmtDbHome, a:ref_name, a:ref_name)
+
+        call s:cm_echohl2( a:ref_name.' building for ctags .... ' )
+        call system(l:cmd_string)
+        call s:cm_echohl4( a:ref_name.' built success.' )
+    endf
+
+    func! s:cm_ctags_db_rm(db) dict
+        call delete(a:db . '.tags')
+    endf
+
+    func! s:cm_ctags_engine_init()
+        call s:dfunc("cm_ctags_engine_init")
+        if executable('ctags')
+            let ctags_cmd = 'ctags'
+            call s:cm_engine_register('ctags', 'ctags')
+            call s:cm_engines_attach_set('ctags', 's:cm_ctags_attach')
+            call s:cm_engines_detach_set('ctags', 's:cm_ctags_detach')
+            call s:cm_engines_db_build_set('ctags', 's:cm_ctags_db_build')
+            call s:cm_engines_db_rm_set('ctags', 's:cm_ctags_db_rm')
+
+            let l:langs = {}
+            let l:langs_map = split(system('ctags --list-maps'), '\n')
+            for lang in l:langs_map
+                let l:l = split(lang)
+                let l:langs[l:l[0]] = l:l[1:]
+            endfor
+            call s:cm_engines_langs_set('ctags', l:langs)
+
+        else
+            call s:cm_echohl0('cs-mgmt: ctags command not found in PATH.')
+            call s:cm_echohl0('cs-mgmt: Please disable the g:CsmgmtCtagsEnable variable.')
+            let g:CsMgmtCtagsEnable = 0
+        endif
+        call s:dret("cm_ctags_engine_init")
+    endf
+
+    call s:cm_ctags_engine_init()
+endif " if g:CsMgmtCtagsEnable == 1
+"}}}
 
 " core utils"{{{
 func! s:cm_get_src_from_file(path)
@@ -705,11 +793,7 @@ func! s:cm_db_rm(line, pos)
         endfor
     endif
 
-    call s:cm_cscope_db_rm(g:CsMgmtDbHome . l:ref_name)
-
-	if g:CsMgmtCtags == 1
-        call s:cm_ctags_db_rm(g:CsMgmtDbHome . l:ref_name)
-    endif
+    call s:cm_engine_db_rm(g:CsMgmtDbHome . l:ref_name)
 
     " delete
     unlet l:parent_key[l:ref_name]
@@ -893,12 +977,8 @@ func! CsMgmtAttach(line, pos)
     call setline(a:pos, a:line." Attach")
     call s:cm_buf_readonly_mode_set()
 
-	call s:cm_cscope_attach(g:CsMgmtDbHome . l:ref_full_name)
+    call s:cm_engine_attach(g:CsMgmtDbHome . l:ref_full_name)
 
-	" for ctags
-	if g:CsMgmtCtags == 1
-		call s:cm_ctags_attach(g:CsMgmtDbHome . l:ref_full_name)
-	endif
     call s:dret("CsMgmtAttach")
 endf
 
@@ -958,12 +1038,8 @@ func! CsMgmtDetach(line, pos)
     call setline(a:pos, a:line[0:-len(" Attach")-1])
     call s:cm_buf_readonly_mode_set()
 
-	call s:cm_cscope_detach(g:CsMgmtDbHome . l:ref_full_name)
+    call s:cm_engine_detach(g:CsMgmtDbHome . l:ref_full_name)
 
-	" for ctags
-	if g:CsMgmtCtags == 1
-		call s:cm_ctags_detach(g:CsMgmtDbHome . l:ref_full_name)
-	endif
     call s:dret("CsMgmtDetach")
 endf
 
@@ -1060,13 +1136,8 @@ func! CsMgmtBuild(line, pos)
     " write to file
     call writefile(l:all_file_list, g:CsMgmtDbHome.l:ref_full_name.'.files')
 
-    " real build for cscope
-    call s:cm_cscope_db_build(l:ref_full_name)
-
-    " real build for ctags
-	if g:CsMgmtCtags == 1
-		call s:cm_ctags_db_build(l:ref_full_name)
-	endif
+    " XXX: don't need g:CsMgmtDbHome
+    call s:cm_engine_db_build(l:ref_full_name)
 
     " add a Attach word on the end of line
     call s:cm_buf_write_mode_set()
@@ -1171,13 +1242,7 @@ func! CsMgmtRebuild(line, pos)
     " write to file
     call writefile(l:all_file_list, g:CsMgmtDbHome.l:ref_full_name.'.files')
 
-    " real build for cscope
-    call s:cm_cscope_db_build(l:ref_full_name)
-
-    " real build for ctags
-	if g:CsMgmtCtags == 1
-		call s:cm_ctags_db_build(l:ref_full_name)
-	endif
+    call s:cm_engine_db_build(l:ref_full_name)
 
     " add a Attach word on the end of line
     call s:cm_buf_write_mode_set()
