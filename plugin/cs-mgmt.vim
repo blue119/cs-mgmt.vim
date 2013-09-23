@@ -140,6 +140,7 @@ func! s:cm_engines_set_langs(engine, langs)
 endfunc
 
 " g:CsMgmtCscopeDisable
+" TODO: cm_cscope_engine_register
 if !exists('g:CsMgmtCscopeDisable')
     if executable('cscope')
         let cscope_cmd = 'cscope'
@@ -162,6 +163,7 @@ endif
 
 " It will also create a tags file of ctags after creating referencing file of
 " cscope
+" TODO: cm_ctags_engine_register
 if exists('g:CsMgmtCtags') && g:CsMgmtCtags == 1
 	if executable('ctags')
 		let ctags_cmd = 'ctags'
