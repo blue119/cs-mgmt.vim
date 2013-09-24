@@ -239,6 +239,15 @@ if !exists('g:CsMgmtCtagsEnable')
     let g:CsMgmtCtagsEnable = 0
 endif
 
+" Program Language Extension Support List. basically, it default to support c
+" , cpp, and asm extension.
+if !exists('g:CsMgmtLangsExtSupport')
+    let g:CsMgmtLangsExtSupport = []
+    let g:CsMgmtLangsExtSupport += ['c', 'h']
+    let g:CsMgmtLangsExtSupport += ['s', 'S', 'asm']
+    let g:CsMgmtLangsExtSupport += ['c++', 'cc', 'cp', 'cpp', 'cxx', 'h', 'h++', 'hh', 'hp', 'hpp', 'hxx', 'C', 'H']
+endif
+
 " Cscoope's Function"{{{
 if g:CsMgmtCscopeEnable == 1
     func! s:cm_cscope_attach(db) dict
@@ -839,12 +848,15 @@ func! s:cm_path_walk(path, all_file_list)
         if isdirectory(file)
             call s:cm_path_walk(file, a:all_file_list)
         else
-            if match(file, '\.[chsS]$') >= 0 ||
-                \ match(file, '\.cpp$') >= 0 ||
-                \ match(file, '\.cxx$') >= 0 ||
-                \ match(file, '\.CC$') >= 0 ||
-                \ match(file, '\.hpp$') >= 0 ||
-                \ match(file, '\.hxx$') >= 0
+            let l:regexp = ""
+            call s:decho(g:CsMgmtLangsExtSupport)
+            for l:ext in g:CsMgmtLangsExtSupport
+                let l:regexp = l:regexp . printf('\.%s$\|', l:ext)
+            endfor
+            let l:regexp = l:regexp[:-3] " remove last '\|'
+            call s:decho(l:regexp)
+
+            if match(file, l:regexp) >= 0
                 call add(a:all_file_list, file)
             endif
         endif
