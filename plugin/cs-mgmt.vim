@@ -157,6 +157,14 @@ func! s:cm_engines_db_rm_set(engine, db_rm)
     call s:dret("cm_engines_db_rm_set")
 endfunc
 
+func! s:cm_engines_db_exist_set(engine, db)
+    call s:dfunc("cm_engines_db_exist_set")
+    call s:decho(printf("args: (%s, %s)", a:engine, a:db))
+    let s:cm_engines[a:engine]['db_exist_chk'] = function(a:db)
+    call s:decho(s:cm_engines[a:engine])
+    call s:dret("cm_engines_db_exist_set")
+endfunc
+
 " the lang's structure
 " {
 "   'C': [all extension of C with expr],
@@ -205,6 +213,20 @@ func! s:cm_engine_db_rm(db)
         call s:cm_engines[engine].db_rm(a:db)
     endfor
     call s:dret("cm_engine_db_rm")
+endf
+
+" return engine name
+func! s:cm_engine_db_exist_chk(db)
+    call s:dfunc("cm_engine_db_exist_chk")
+    call s:decho(printf("args: (%s)", string(a:db)))
+    let l:ret = []
+    for engine in keys(s:cm_engines)
+        if s:cm_engines[engine].db_exist_chk(a:db)
+            call add(l:ret, engine)
+        endif
+    endfor
+    call s:dret("cm_engine_db_exist_chk")
+    return l:ret
 endf
 "}}}
 
@@ -275,6 +297,10 @@ if g:CsMgmtCscopeEnable == 1
         endfor
     endf
 
+    func! s:cm_cscope_db_exist_chk(db) dict
+        return filereadable(a:db . '.out')
+    endf
+
     func! s:cm_cscope_engine_init()
         call s:dfunc("cm_cscope_engine_init")
         if executable('cscope')
@@ -284,6 +310,7 @@ if g:CsMgmtCscopeEnable == 1
             call s:cm_engines_detach_set('cscope', 's:cm_cscope_detach')
             call s:cm_engines_db_build_set('cscope', 's:cm_cscope_db_build')
             call s:cm_engines_db_rm_set('cscope', 's:cm_cscope_db_rm')
+            call s:cm_engines_db_exist_set('cscope', 's:cm_cscope_db_exist_chk')
 
             " refer to ctags
             let l:langs = {}
@@ -341,6 +368,10 @@ if g:CsMgmtCtagsEnable == 1
         call delete(a:db . '.tags')
     endf
 
+    func! s:cm_ctags_db_exist_chk(db) dict
+        return filereadable(a:db . '.tags')
+    endf
+
     func! s:cm_ctags_engine_init()
         call s:dfunc("cm_ctags_engine_init")
         if executable('ctags')
@@ -350,6 +381,7 @@ if g:CsMgmtCtagsEnable == 1
             call s:cm_engines_detach_set('ctags', 's:cm_ctags_detach')
             call s:cm_engines_db_build_set('ctags', 's:cm_ctags_db_build')
             call s:cm_engines_db_rm_set('ctags', 's:cm_ctags_db_rm')
+            call s:cm_engines_db_exist_set('ctags', 's:cm_ctags_db_exist_chk')
 
             let l:langs = {}
             let l:langs_map = split(system('ctags --list-maps'), '\n')
@@ -1416,6 +1448,13 @@ func! CsMgmtFurtherInfo(line, pos)
                 \   (l:ref_name):
                 \   (l:parent.'_'.l:ref_name)
 
+    let l:item = s:cm_db_get()
+    for p in l:parent_list | let l:item = l:item[p] | endfor
+
+    let l:abs_path = g:CsMgmtDbHome . l:ref_full_name . ".files"
+    let l:full_ftime = strftime("%F %T",
+                    \ getftime(g:CsMgmtDbHome.l:ref_full_name.'.out'))
+
     call s:decho("ref_level: " . l:ref_level)
     call s:decho("ref_name: " . l:ref_name)
     call s:decho("ref_full_name: " . l:ref_full_name)
@@ -1436,16 +1475,67 @@ func! CsMgmtFurtherInfo(line, pos)
     setl buftype=nofile
     setl noswapfile
 
-    call append(line('$')-1, ("ref_level: " . l:ref_level))
-    call append(line('$')-1, ("ref_name: " . l:ref_name))
-    call append(line('$')-1, ("ref_full_name: " . l:ref_full_name))
-    call append(line('$')-1, ("parent_list: " . string(l:parent_list)))
-    call append(line('$')-1, ("parent: " . l:parent))
+    call append(line('$')-1, "Last Update: " . l:full_ftime)
+
+    let l:db_exist = s:cm_engine_db_exist_chk(g:CsMgmtDbHome . l:ref_full_name)
+    call append(line('$')-1, "DB Exist: " . string(l:db_exist))
+
+    " Including
+    " call s:cm_echohl0('Determining Include Language......')
+    call append(line('$')-1, (""))
+    call append(line('$')-1, ("Include Language:"))
+    let files_n = system('cat '.l:abs_path.' | wc -l')[:-2] " also remove \n
+
+    let l:ret = split(system('cloc --progress-rate=0 --skip-uniqueness --csv --list-file='.l:abs_path), '\n')
+    let l:ignored = matchlist(l:ret[2], '\ *\(\d\+\)\ files ignored.')[1]
+    let l:files_n -= l:ignored
+
+    let l:counted = 0
+    for i in l:ret[5:]
+        let l:split = matchlist(i, '\(\d\+\),\(.*\),\(\d\+\),\(\d\+\),\(\d\+\)')
+        if len(ret)
+            let l:rate = eval(l:split[1].'/'.l:files_n.'.0') * 100
+            call append(line('$')-1, printf('    %s: %.2f%%', l:split[2], l:rate))
+            let l:counted += l:split[1]
+        endif
+    endfor
+    if l:files_n - l:counted
+        call append(line('$')-1, printf('    Other: %.2f%%', eval(printf('((%d-%d.0)/%d)*100', l:files_n, l:counted, l:files_n))))
+    endif
+    " Including
+
+
+    " exclude rate
+    " TODO: more reference folder in l:item[l:ref_name]
+    " call s:cm_echohl1('Determining Exclude Language......')
+    call append(line('$')-1, (""))
+    call append(line('$')-1, ("Exclude Language:"))
+    let l:ret = split(system( printf('%s',  'cloc --progress-rate=0 --skip-uniqueness --csv --exclude-list-file='.l:abs_path.' '.l:item[l:ref_name][0])) , '\n')
+
+    let l:files_n = matchlist(l:ret[0], '\ *\(\d\+\)\ text files.')[1]
+    let l:ignored = matchlist(l:ret[2], '\ *\(\d\+\)\ files ignored.')[1]
+    let l:files_n -= l:ignored
+
+    let l:counted = 0
+    for i in l:ret[5:]
+        let l:split = matchlist(i, '\(\d\+\),\(.*\),\(\d\+\),\(\d\+\),\(\d\+\)')
+        if len(ret)
+            let l:rate = eval(l:split[1].'/'.l:files_n.'.0') * 100
+            call append(line('$')-1, printf('    %s: %.2f%%', l:split[2], l:rate))
+            let l:counted += l:split[1]
+        endif
+    endfor
+    if (l:files_n - l:counted) > 0
+        call append(line('$')-1, printf('    Other: %.2f%%', (l:files_n-l:counted)/l:files_n))
+    endif
+    " exclude rate
+    "
     exec 'resize 10'
-    wincmd k
+    exec ':1'
 
     call s:dret("CsMgmtFurtherInfo")
 endf
+
 
 func! CsMgmtOpenAllFile(line, pos)
     call s:dfunc("CsMgmtOpenAllFile")
@@ -1739,6 +1829,7 @@ let s:cs_mgmt_buf_hdr = ['" +-------------- Key Map ---------------+',
                        \ '" | Press b: to build db                 |',
                        \ '" | Press r: to rebuild db               |',
                        \ '" | Press e: edit this configuration     |',
+                       \ '" | Press i: display further infomation  |',
                        \ '" |--------------------------------------|',
                        \ '" | Press dd: delete a item from menu    |',
                        \ '" | Press q: quit                        |',
@@ -1812,6 +1903,7 @@ let s:json2file_list = []
 
 augroup CsMgmtEditAutoCmd
     " update to .cs-mgmt.json
+    " TODO: verify the exclude must be a sub-folder of including
     au BufWritePost *.cs-mgmt-edit
             \   let db = s:cm_db_get()
             \|  let item = db
