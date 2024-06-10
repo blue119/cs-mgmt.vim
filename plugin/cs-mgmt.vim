@@ -273,11 +273,19 @@ endif
 " Cscoope's Function"{{{
 if g:CsMgmtCscopeEnable == 1
     func! s:cm_cscope_attach(db) dict
-        exec printf("cs add %s.out", a:db)
+        if has('nvim-9')
+            exec printf("Cs db add %s.out", a:db)
+        else
+            exec printf("cs add %s.out", a:db)
+        endif
     endf
 
     func! s:cm_cscope_detach(db) dict
-        exec printf("cs kill %s.out", a:db)
+        if has('nvim-9')
+            exec printf("Cs db rm %s.out", a:db)
+        else
+            exec printf("cs kill %s.out", a:db)
+        endif
     endf
 
     func! s:cm_cscope_db_build(ref_name) dict
